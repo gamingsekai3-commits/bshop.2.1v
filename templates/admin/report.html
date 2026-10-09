@@ -1,0 +1,170 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_pager %}
+
+{% block title %}{{ report_title }} | {{ T.admin_site_title }}{% endblock %}
+
+{% block content_title %}<h1>{{ report_title }}</h1>{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; {{ T.admin_app_reports }}
+  &rsaquo; {{ report_title }}
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  {# date filter + calendar-picker styles: shared with the Overview report #}
+</style>
+{% include "admin/_report_filter_style.html" %}
+<style>
+  .report-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .report-card { position: relative; padding: 16px 20px; background: var(--darkened-bg); border: 1px solid var(--hairline-color);
+                 border-radius: var(--admin-radius, 8px);
+                 transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+  /* Every card lifts on hover; only cards with a popup (.is-link) are clickable
+     (pointer cursor, "›" hint, press effect, keyboard focus). */
+  .report-card:hover, .report-card.is-link:focus-visible { transform: translateY(-4px); border-color: var(--primary, #417690);
+                 box-shadow: 0 10px 24px rgba(0,0,0,.16); outline: none; }
+  .report-card.is-link { cursor: pointer; }
+  .report-card.is-link:active { transform: translateY(-1px) scale(.985); }
+  .report-card strong { display: inline-block; transition: transform .25s ease; transform-origin: left center; }
+  .report-card:hover strong, .report-card.is-link:focus-visible strong { transform: scale(1.07); }
+  .report-card.is-link::after { content: '\203A'; position: absolute; right: 16px; top: 50%; margin-top: -14px; font-size: 26px;
+                 line-height: 1; color: var(--body-quiet-color); opacity: 0; transform: translateX(-8px);
+                 transition: opacity .25s ease, transform .25s ease; }
+  .report-card.is-link:hover::after, .report-card.is-link:focus-visible::after { opacity: .7; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .report-card, .report-card strong, .report-card::after { transition: none; }
+    .report-card:hover, .report-card.is-link:active, .report-card:hover strong { transform: none; }
+  }
+  .report-card span { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700;
+                      letter-spacing: .05em; text-transform: uppercase; color: var(--body-quiet-color); }
+  .report-card strong { font-size: 22px; }
+  .report-table-wrap { overflow-x: auto; }
+  .report-table { width: 100%; }
+  .report-table .num { text-align: right; white-space: nowrap; }
+  .report-table th .rs-head { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+  .report-table th .rs-link { color: inherit; text-decoration: none; cursor: pointer; white-space: nowrap; }
+  .report-table th .rs-link.is-sorted { color: var(--primary); }
+  .report-table tfoot td { font-weight: 700; border-top: 2px solid var(--hairline-color); }
+  .report-note { margin-top: 12px; color: var(--body-quiet-color); font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if show_filter %}
+{% include "admin/_report_filter.html" %}
+{% endif %}
+
+{% if summary %}
+<div class="report-summary">
+  {% for label, value, detail in summary %}
+  {% if detail %}
+  <div class="report-card is-link" role="button" tabindex="0" data-rd-template="report-card-{{ forloop.counter }}">
+    <span>{{ label.0 }}</span><strong>{{ value.0 }}</strong>
+  </div>
+  {# Popup body for this card: detail-popup.js copies it into the modal on click. #}
+  <template id="report-card-{{ forloop.counter }}">
+    <h2 class="rd-title">{{ label.0 }}</h2>
+    <div class="rd-cards"><div><span>{{ label.0 }}</span><strong>{{ value.0 }}</strong></div></div>
+
+    {% if detail.kind == 'orders' %}
+      {% for o in detail.orders %}
+      <details class="rd-order"{% if forloop.first %} open{% endif %}>
+        <summary>
+          <strong>{{ T.rd_order_no }}{{ o.id }}</strong>
+          <span>{{ o.date }}</span>
+          <span>{{ o.name }}</span>
+          <span class="rd-badge">{{ o.status }}</span>
+          <span class="rd-sum">{{ o.total }} ₮</span>
+        </summary>
+        <div class="rd-order-body">
+          <dl class="rd-dl">
+            <dt>{{ T.rd_customer }}</dt><dd>{{ o.name }}</dd>
+            <dt>{{ T.customer_phone }}</dt><dd>{{ o.phone }}</dd>
+            {% if o.address %}<dt>{{ T.rd_address }}</dt><dd>{{ o.address }}</dd>{% endif %}
+            {% if o.username %}<dt>{{ T.admin_report_username }}</dt><dd>{{ o.username }}</dd>{% endif %}
+          </dl>
+          <div class="rd-scroll">
+            <table class="rd-table">
+              <thead><tr>
+                <th>{{ T.admin_col_name }}</th><th class="num">{{ T.rd_qty }}</th>
+                <th class="num">{{ T.rd_unit_price }}</th><th class="num">{{ T.rd_amount }}</th>
+              </tr></thead>
+              <tbody>
+                {% for it in o.items %}
+                <tr>
+                  <td>{{ it.name }}{% if it.options %}<br><small>{{ it.options }}</small>{% endif %}</td>
+                  <td class="num">{{ it.qty }}</td><td class="num">{{ it.price }}</td><td class="num">{{ it.amount }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot><tr><td colspan="3">{{ T.rd_amount }}</td><td class="num">{{ o.total }}</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </details>
+      {% empty %}
+      <p class="rd-empty">{{ T.admin_report_no_data }}</p>
+      {% endfor %}
+
+    {% elif detail.rows %}
+    <div class="rd-scroll">
+      <table class="rd-table">
+        <thead><tr>{% for h in detail.heads %}<th{% if not forloop.first %} class="num"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in detail.rows %}<tr>{% for c in row %}<td{% if not forloop.first %} class="num"{% endif %}>{{ c.0 }}</td>{% endfor %}</tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="rd-empty">{{ T.admin_report_no_data }}</p>
+    {% endif %}
+  </template>
+  {% else %}
+  <div class="report-card"><span>{{ label.0 }}</span><strong>{{ value.0 }}</strong></div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<div id="report-dyn">
+<div class="report-table-wrap">
+  <table class="report-table" data-server-sort{% if pager.single_page %} data-all-rows{% endif %}>
+    <thead>
+      <tr>
+        {% for heading, is_num, filter_mode, sortable, sort_url, sort_dir, sort_active, fdata, f_active, up_url, down_url in columns %}<th scope="col" data-col="{{ forloop.counter0 }}" data-dir="{{ sort_dir }}" data-filter="{{ filter_mode }}"{% if fdata %} data-fopts="{{ fdata }}"{% endif %}{% if f_active %} data-factive="1"{% endif %}{% if sort_dir %} aria-sort="{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}{% if is_num %} class="num"{% endif %}><span class="rs-head"><a class="rs-link{% if sort_active %} is-sorted{% endif %}" href="{{ sort_url }}">{{ heading }}</a><span class="rs-arrows"><a class="rs-dir rs-up" href="{{ up_url }}" data-dir="asc" aria-label="{{ heading }} ▲"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M5 0 10 6H0z"/></svg></a><a class="rs-dir rs-down" href="{{ down_url }}" data-dir="desc" aria-label="{{ heading }} ▼"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M0 0h10L5 6z"/></svg></a></span></span></th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-ord="{{ row.0.5 }}">
+        {% for text, is_num, url, sv, sv_num, ord in row %}<td{% if is_num %} class="num"{% endif %} data-sv="{{ sv }}"{% if sv_num %} data-n{% endif %}>{% if url %}<a href="{{ url }}" class="rd-link">{{ text }}</a>{% else %}{{ text }}{% endif %}</td>{% endfor %}
+      </tr>
+      {% empty %}
+      <tr><td colspan="{{ columns|length }}">{{ T.admin_report_no_data }}</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if footer and rows %}
+    <tfoot>
+      <tr>
+        {% for text, is_num, url in footer %}<td{% if is_num %} class="num"{% endif %}>{{ text }}</td>{% endfor %}
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+
+{% if pager %}{% bshop_report_pager pager %}{% endif %}
+
+{% if note %}<p class="report-note">{{ note }}</p>{% endif %}
+</div>
+
+{% if show_filter %}
+{% include "admin/_report_filter_script.html" %}
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,43 @@
+/* Shared by every "click a name/picture -> detail popup" in the admin
+   (report tables and the Product list). Loaded from admin/base_site.html. */
+.rd-link { font-weight: 600; text-decoration: underline dotted; cursor: pointer; }
+a.rd-thumb-link { display: inline-block; text-decoration: none; }
+a.rd-thumb-link img { display: block; transition: transform .5s ease, box-shadow .5s ease; }
+a.rd-thumb-link:hover img { transform: scale(1.06); box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.rd-overlay { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: center; justify-content: center;
+              background: rgba(0,0,0,.6); padding: 20px; opacity: 0; visibility: hidden; pointer-events: none;
+              transition: opacity .5s ease, visibility 0s linear .5s; }
+.rd-overlay.open { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .5s ease, visibility 0s; }
+.rd-modal { transform: translateY(16px) scale(.96); transition: transform .5s ease; }
+.rd-overlay.open .rd-modal { transform: none; }
+.rd-modal { position: relative; width: min(860px, 100%); max-height: 90vh; overflow: auto; padding: 22px 26px;
+            background: var(--body-bg); color: var(--body-fg); border-radius: 14px; box-shadow: 0 25px 80px rgba(0,0,0,.5); }
+.rd-x { position: absolute; top: 10px; right: 12px; border: 0; background: transparent; color: inherit; font-size: 26px;
+        line-height: 1; cursor: pointer; padding: 4px 10px; border-radius: 8px; }
+.rd-x:hover { background: var(--darkened-bg); }
+.rd-title { margin: 0 0 14px; font-size: 20px; }
+.rd-sub { margin: 22px 0 10px; font-size: 14px; }
+.rd-sub small { font-weight: 400; color: var(--body-quiet-color); }
+.rd-head { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.rd-img { width: 150px; height: 150px; object-fit: cover; border-radius: 10px; border: 1px solid var(--hairline-color); }
+.rd-dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.rd-dl dt { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--body-quiet-color); padding-top: 2px; }
+.rd-dl dd { margin: 0; }
+.rd-desc { margin: 14px 0 0; color: var(--body-quiet-color); }
+.rd-cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.rd-cards div { padding: 10px 16px; background: var(--darkened-bg); border: 1px solid var(--hairline-color); border-radius: 8px; }
+.rd-cards span { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--body-quiet-color); }
+.rd-cards strong { font-size: 18px; }
+.rd-scroll { overflow-x: auto; }
+.rd-table { width: 100%; }
+.rd-table .num { text-align: right; white-space: nowrap; }
+.rd-table tfoot td { font-weight: 700; border-top: 2px solid var(--hairline-color); }
+.rd-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 8px; }
+.rd-order { border: 1px solid var(--hairline-color); border-radius: 10px; margin-bottom: 10px; }
+.rd-order summary { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 10px 14px; cursor: pointer; }
+.rd-badge { padding: 2px 10px; border-radius: 99px; background: var(--darkened-bg); border: 1px solid var(--hairline-color); font-size: 12px; }
+.rd-sum { margin-left: auto; font-weight: 700; }
+.rd-order-body { padding: 4px 14px 16px; display: grid; gap: 16px; }
+.rd-receipt-wrap { text-align: center; }
+.rd-print { margin-top: 10px; cursor: pointer; }
+.rd-empty { color: var(--body-quiet-color); }

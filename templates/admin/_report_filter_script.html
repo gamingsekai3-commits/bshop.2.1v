@@ -1,0 +1,71 @@
+<script>
+  (function () {
+    var form = document.getElementById('report-filter-form');
+    if (!form) return;
+    var lang = window.BSHOP_LANG || document.documentElement.lang || 'mn';
+    function fmt(opts, d) {
+      try { return new Intl.DateTimeFormat(lang, opts).format(d); }
+      catch (e) { return new Intl.DateTimeFormat('en', opts).format(d); }
+    }
+    function iso(y, m, d) {
+      return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    }
+    function parse(v) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+      return m ? { y: +m[1], m: +m[2] - 1, d: +m[3] } : null;
+    }
+
+    form.querySelectorAll('.dp').forEach(function (box) {
+      var input = box.querySelector('input');
+      var pop = document.createElement('div');
+      pop.className = 'dp-pop';
+      box.appendChild(pop);
+      var start = parse(input.value) || { y: new Date().getFullYear(), m: new Date().getMonth(), d: 1 };
+      var view = { y: start.y, m: start.m };
+
+      function render() {
+        var sel = parse(input.value), now = new Date();
+        pop.innerHTML = '';
+        var head = document.createElement('div');
+        head.className = 'dp-head';
+        var prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '\u2039';
+        var next = document.createElement('button'); next.type = 'button'; next.textContent = '\u203A';
+        var title = document.createElement('span');
+        title.textContent = fmt({ year: 'numeric', month: 'long' }, new Date(view.y, view.m, 1));
+        prev.onclick = function () { view.m--; if (view.m < 0) { view.m = 11; view.y--; } render(); };
+        next.onclick = function () { view.m++; if (view.m > 11) { view.m = 0; view.y++; } render(); };
+        head.append(prev, title, next);
+        pop.appendChild(head);
+
+        var grid = document.createElement('div');
+        grid.className = 'dp-grid';
+        for (var i = 0; i < 7; i++) {           // Monday first (2024-01-01 is a Monday)
+          var dow = document.createElement('div');
+          dow.className = 'dow';
+          dow.textContent = fmt({ weekday: 'short' }, new Date(2024, 0, 1 + i));
+          grid.appendChild(dow);
+        }
+        var offset = (new Date(view.y, view.m, 1).getDay() + 6) % 7;
+        for (var k = 0; k < offset; k++) grid.appendChild(document.createElement('span'));
+        var days = new Date(view.y, view.m + 1, 0).getDate();
+        for (var d = 1; d <= days; d++) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = d;
+          if (d === now.getDate() && view.m === now.getMonth() && view.y === now.getFullYear()) btn.classList.add('today');
+          if (sel && sel.y === view.y && sel.m === view.m && sel.d === d) btn.classList.add('sel');
+          btn.onclick = (function (day) {
+            return function () { input.value = iso(view.y, view.m, day); form.submit(); };
+          })(d);
+          grid.appendChild(btn);
+        }
+        pop.appendChild(grid);
+      }
+      render();
+
+      // Touch screens have no hover, so a tap toggles the calendar as well.
+      input.addEventListener('click', function () { box.classList.toggle('open'); });
+      document.addEventListener('click', function (e) { if (!box.contains(e.target)) box.classList.remove('open'); });
+    });
+  })();
+</script>

@@ -1,0 +1,345 @@
+/* Navbar theme ported from dadlaga-1 (dark background, gold links) */
+
+.dadlaga-nav {
+    background-color: #2b2a2a !important;
+    padding: 0.75rem 1.5rem;
+}
+
+.dadlaga-nav .navbar-brand {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.dadlaga-nav .nav-link {
+    color: #f1d2a2 !important;
+    font-size: 16px;
+    padding: 0.5rem 1rem !important;
+    transition: background-color 150ms ease-out, color 150ms ease-out;
+    border-radius: 5px;
+}
+
+.dadlaga-nav .nav-link:hover,
+.dadlaga-nav .nav-link.active {
+    background-color: #ffffff;
+    color: #2b2a2a !important;
+}
+
+.dadlaga-nav .dropdown-menu {
+    background-color: #2b2a2a;
+    border-radius: 5px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    border: none;
+}
+
+.dadlaga-nav .dropdown-item {
+    color: #f1d2a2;
+}
+
+.dadlaga-nav .dropdown-item:hover {
+    background-color: #ffffff;
+    color: #2b2a2a;
+}
+
+.dadlaga-nav .dropdown-divider {
+    border-color: rgba(241, 210, 162, 0.3);
+}
+
+.dadlaga-nav .navbar-toggler {
+    border-color: #f1d2a2;
+}
+
+.dadlaga-nav .navbar-toggler-icon {
+    filter: invert(85%) sepia(20%) saturate(400%) hue-rotate(340deg);
+}
+
+.dadlaga-nav .btn-outline-dark {
+    color: #f1d2a2;
+    border-color: #f1d2a2;
+}
+
+.dadlaga-nav .btn-outline-dark:hover {
+    background-color: #f1d2a2;
+    color: #2b2a2a;
+}
+
+.dadlaga-nav .btn-theme-toggle {
+    color: #f1d2a2;
+    background: transparent;
+    border: 1px solid #f1d2a2;
+    border-radius: 5px;
+    padding: 0.3rem 0.6rem;
+}
+
+.dadlaga-nav .search-bar {
+    background-color: #2b2a2a;
+}
+
+.dadlaga-nav .search-bar .form-control {
+    background-color: #3a3939;
+    color: #fff;
+    border: 1px solid #f1d2a2;
+}
+
+.dadlaga-nav .search-bar .form-control::placeholder {
+    color: #d8c3a3;
+}
+
+.dadlaga-nav .search-bar .btn {
+    background-color: #f1d2a2;
+    color: #2b2a2a;
+    border: none;
+}
+
+/* Recent-searches dropdown (Facebook-style), anchored under the search bar */
+.search-bar-wrapper {
+    position: relative;
+}
+
+.recent-search-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 320px;
+    max-width: 90vw;
+    background-color: #2b2a2a;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    padding: 10px 0;
+    z-index: 1050;
+}
+
+.recent-search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 16px 10px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.recent-search-clear-btn {
+    background: none;
+    border: none;
+    color: #4a9eff;
+    font-size: 0.85rem;
+    padding: 0;
+    cursor: pointer;
+}
+
+.recent-search-clear-btn:hover {
+    text-decoration: underline;
+}
+
+.recent-search-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.recent-search-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+}
+
+.recent-search-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.recent-search-icon {
+    color: #d8c3a3;
+    font-size: 0.95rem;
+    display: flex;
+}
+
+.recent-search-text {
+    flex: 1;
+    color: #f1d2a2;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-search-remove {
+    background: none;
+    border: none;
+    color: #999;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.recent-search-remove:hover {
+    color: #fff;
+}
+
+[data-theme="light"] .recent-search-dropdown {
+    background-color: #ffffff;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .recent-search-header {
+    color: #1a1a1a;
+}
+
+[data-theme="light"] .recent-search-text {
+    color: #333;
+}
+
+[data-theme="light"] .recent-search-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Live product-suggestion rows (dropdown-mode-suggest) */
+.suggest-item {
+    gap: 12px;
+}
+
+.suggest-thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+.suggest-price {
+    color: #f1d2a2;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.suggest-see-all {
+    justify-content: center;
+    color: #4a9eff;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.suggest-see-all:hover {
+    text-decoration: underline;
+}
+
+[data-theme="light"] .suggest-price {
+    color: #b8860b;
+}
+
+/* Light-mode overrides: must live here (loaded after styles.css) with a
+   higher-specificity selector so they reliably beat the dark-theme
+   .dadlaga-nav rules above instead of losing the !important tie-break. */
+[data-theme="light"] .dadlaga-nav .nav-link {
+    color: #888888 !important;
+}
+
+[data-theme="light"] .dadlaga-nav .nav-link:hover,
+[data-theme="light"] .dadlaga-nav .nav-link.active {
+    background-color: transparent !important;
+    color: #1a1a1a !important;
+}
+
+[data-theme="light"] .dadlaga-nav .navbar-toggler {
+    border-color: #dddbd6;
+}
+
+[data-theme="light"] .dadlaga-nav .navbar-toggler-icon {
+    filter: none;
+}
+
+[data-theme="light"] .dadlaga-nav .search-bar .form-control {
+    border: 1px solid transparent;
+}
+
+[data-theme="light"] .dadlaga-nav .search-bar .form-control:focus {
+    box-shadow: none;
+}
+
+[data-theme="light"] .dadlaga-nav .search-bar {
+    background-color: transparent;
+}
+
+/* Even out the theme toggle, language switch, and Cart/My Orders buttons,
+   which otherwise render at different heights (30px / 27px / 38px) because
+   they each come from a different padding/font-size/line-height rule. */
+.dadlaga-nav .btn-theme-toggle,
+.dadlaga-nav .lang-switch,
+.dadlaga-nav .btn-outline-dark {
+    height: 38px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+}
+
+.dadlaga-nav .lang-switch .lang-btn {
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* Profile dropdown (username + theme toggle + My Orders + Logout) */
+.dadlaga-nav .profile-toggle {
+    max-width: 180px;
+}
+
+.dadlaga-nav .profile-toggle .profile-name {
+    display: inline-block;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.dadlaga-nav .profile-toggle::after {
+    margin-left: 0.5rem;
+}
+
+.dadlaga-nav .profile-menu {
+    min-width: 200px;
+    padding: 0.4rem 0;
+}
+
+/* The theme toggle lives inside the dropdown as a full-width row that
+   matches the other dropdown-items (icon + label), instead of the small
+   standalone icon-only button used for guests. */
+.dadlaga-nav .profile-theme-toggle {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dadlaga-nav .profile-theme-toggle .theme-toggle-icon {
+    display: inline-flex;
+    width: 1rem;
+}
+
+.dadlaga-nav .profile-logout:hover {
+    background-color: #f1d2a2;
+    color: #2b2a2a !important;
+}
+
+/* Give the MH/EN language switch the same hover treatment as the
+   Cart / profile buttons (.btn-outline-dark): gold fill, dark text. */
+.dadlaga-nav .lang-btn:hover {
+    background-color: #f1d2a2;
+    color: #2b2a2a !important;
+}
+
+/* Dark mode: give the profile button a visible gray border - the same look
+   the admin panel's profile button has. On the navbar's #2b2a2a background the
+   default border (#2a2a2a) blends in, so the button looked borderless. */
+[data-theme="dark"] .dadlaga-nav .profile-toggle {
+    border-color: #444444 !important;
+}

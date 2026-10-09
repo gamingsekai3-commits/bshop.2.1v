@@ -1,0 +1,75 @@
+{% load i18n %}
+
+{% comment %}
+Overrides Django's stock admin/app_list.html (used by nav_sidebar.html).
+
+Changes from the original:
+  1. The app name is no longer a real <a href="{{ app.app_url }}">. It used
+     to navigate to the app's index page - now it's a toggle button that
+     shows/hides that app's model links (see custom_theme.css for the
+     hover-to-expand rule, and nav-app-collapse.js for the click/keyboard
+     fallback on touch devices, where hover doesn't exist).
+  2. The header lives in its own <div class="app-header"> above the table,
+     rather than in <caption>, and the model table sits inside
+     <div class="app-models-wrap">. That wrapper is what actually animates
+     open/closed (a CSS grid-rows transition - see custom_theme.css) - it
+     needs a plain block element to do that smoothly, which a <table>
+     directly under a <div class="module"> can't do on its own.
+{% endcomment %}
+
+{% if app_list %}
+  {% for app in app_list %}
+    <div class="app-{{ app.app_label }} module{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
+      <div class="app-header">
+        <span class="section app-toggle" role="button" tabindex="0"
+              aria-expanded="{% if app.app_url in request.path|urlencode %}true{% else %}false{% endif %}">
+          {{ app.name }}
+        </span>
+      </div>
+      <div class="app-models-wrap">
+        <table aria-label="{{ app.name }}">
+          <thead class="visually-hidden">
+            <tr>
+              <th scope="col">{% translate 'Model name' %}</th>
+              <th scope="col">{% translate 'Add link' %}</th>
+              <th scope="col">{% translate 'Change or view list link' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for model in app.models %}
+            {% with model_name=model.object_name|lower %}
+              <tr class="model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                <th scope="row" id="{{ app.app_label }}-{{ model_name }}">
+                  {% if model.admin_url %}
+                    <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                  {% else %}
+                    {{ model.name }}
+                  {% endif %}
+                </th>
+
+                {% if model.add_url %}
+                  <td><a href="{{ model.add_url }}" class="addlink" aria-describedby="{{ app.app_label }}-{{ model_name }}">{% translate 'Add' %}</a></td>
+                {% else %}
+                  <td></td>
+                {% endif %}
+
+                {% if model.admin_url and show_changelinks %}
+                  {% if model.view_only %}
+                    <td><a href="{{ model.admin_url }}" class="viewlink" aria-describedby="{{ app.app_label }}-{{ model_name }}">{% translate 'View' %}</a></td>
+                  {% else %}
+                    <td><a href="{{ model.admin_url }}" class="changelink" aria-describedby="{{ app.app_label }}-{{ model_name }}">{% translate 'Change' %}</a></td>
+                  {% endif %}
+                {% elif show_changelinks %}
+                  <td></td>
+                {% endif %}
+              </tr>
+            {% endwith %}
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p>{% translate 'You don’t have permission to view or edit anything.' %}</p>
+{% endif %}

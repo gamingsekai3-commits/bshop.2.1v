@@ -1,0 +1,43 @@
+{% extends "admin/change_list.html" %}
+{% load static admin_pager %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/popup-edit.css' %}">
+{% endblock %}
+
+{# Column-funnel options for this list (store/admin.py BshopChangeList). It sits inside #changelist-form, so
+   table-filter.js gets fresh options every time the list is swapped in place. #}
+{% block result_list %}
+{{ block.super }}
+{% if cl.column_filter_info %}{{ cl.column_filter_info|json_script:"bshop-fopts" }}{% endif %}
+{% endblock %}
+
+{# Our own pager (store/templatetags/admin_pager.py) instead of Django's. #}
+{% block pagination %}
+{% bshop_pager cl %}
+{% if cl.formset and cl.result_count %}
+<div id="bshop-save-bar" class="bshop-save-bar" role="status">
+  <span class="bsb-text">{{ T.admin_unsaved_changes }}</span>
+  <button type="button" id="bshop-save-cancel" class="bsb-cancel">{{ T.admin_btn_cancel }}</button>
+  <input type="submit" name="_save" class="default bsb-save" value="{{ T.admin_btn_save }}">
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+<div id="popup-edit-overlay" class="popup-edit-overlay">
+  <div class="popup-edit-box">
+    <div id="popup-edit-loading" class="popup-edit-loading" style="display:none;">
+      {{ T.admin_loading }}
+    </div>
+    <button type="button" id="popup-edit-close" class="popup-edit-close" aria-label="{{ T.admin_btn_close }}">&times;</button>
+    <iframe id="popup-edit-frame" class="popup-edit-frame"></iframe>
+  </div>
+</div>
+
+<script src="{% static 'admin/js/popup-edit.js' %}" defer></script>
+<script src="{% static 'admin/js/save-bar.js' %}" defer></script>
+{% endblock %}

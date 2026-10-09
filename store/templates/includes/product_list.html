@@ -1,0 +1,119 @@
+{% comment %}
+Usage: {% include 'includes/product_list.html' with products=products %}
+
+Drop this include on any page that lists products (home, category, search, ...)
+and it comes with a grid/list view toggle for free. The view choice is saved
+in localStorage under "eshop-view" so it's remembered across pages/visits.
+{% endcomment %}
+
+<div class="product-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div class="filter-bar d-flex flex-wrap align-items-center gap-2">
+        <div class="filter-select-wrap">
+            <select class="filter-select" id="sort-select" aria-label="{{ T.sort_label }}">
+                <option value="">{{ T.sort_name_asc }}</option>
+                <option value="name_desc">{{ T.sort_name_desc }}</option>
+                <option value="price_asc">{{ T.sort_price_asc }}</option>
+                <option value="price_desc">{{ T.sort_price_desc }}</option>
+                <option value="popularity">{{ T.sort_popularity }}</option>
+                <option value="rating">{{ T.sort_rating }}</option>
+            </select>
+            <i class="bi bi-chevron-down filter-select-caret"></i>
+        </div>
+        <div class="filter-select-wrap">
+            <select class="filter-select" id="period-select" aria-label="{{ T.period_label }}">
+                <option value="">{{ T.period_all }}</option>
+                <option value="daily">{{ T.period_daily }}</option>
+                <option value="monthly">{{ T.period_monthly }}</option>
+                <option value="yearly">{{ T.period_yearly }}</option>
+            </select>
+            <i class="bi bi-chevron-down filter-select-caret"></i>
+        </div>
+        <button type="button" class="filter-icon-btn" id="filter-reset-btn" title="{{ T.filter_reset_title }}" aria-label="{{ T.filter_reset_title }}">
+            <i class="bi bi-funnel"></i>
+        </button>
+    </div>
+    <div class="view-toggle" role="group" aria-label="Харагдах хэлбэр">
+        <button type="button" class="view-btn" data-view="grid" title="{{ T.view_grid_title }}" aria-label="{{ T.view_grid_title }}">
+            <i class="bi bi-grid-3x3-gap-fill"></i>
+        </button>
+        <button type="button" class="view-btn" data-view="list" title="{{ T.view_list_title }}" aria-label="{{ T.view_list_title }}">
+            <i class="bi bi-list-ul"></i>
+        </button>
+    </div>
+</div>
+
+<div class="product-container row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center" id="product-container">
+    {% for product in products %}
+        {% include 'includes/product_card.html' with product=product %}
+    {% endfor %}
+</div>
+
+<script>
+(function () {
+    var container = document.getElementById('product-container');
+    if (!container || container.dataset.viewToggleBound) return;
+    container.dataset.viewToggleBound = "1";
+
+    // Scope the buttons to this specific toolbar in case the include is
+    // ever used more than once on the same page.
+    var toolbar = container.previousElementSibling;
+    var buttons = toolbar ? toolbar.querySelectorAll('.view-btn') : [];
+
+    function applyView(view) {
+        buttons.forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-view') === view);
+        });
+        container.classList.toggle('list-view', view === 'list');
+    }
+
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var view = btn.getAttribute('data-view');
+            applyView(view);
+            localStorage.setItem('eshop-view', view);
+        });
+    });
+
+    applyView(localStorage.getItem('eshop-view') || 'grid');
+
+    // --- Sort / period filter bar ---
+    // Plain GET params on the current URL (?sort=&period=), so the choice
+    // survives a refresh/share and works with no JS framework at all.
+    var sortSelect = document.getElementById('sort-select');
+    var periodSelect = document.getElementById('period-select');
+    var resetBtn = document.getElementById('filter-reset-btn');
+    var params = new URLSearchParams(window.location.search);
+
+    if (sortSelect) sortSelect.value = params.get('sort') || '';
+    if (periodSelect) periodSelect.value = params.get('period') || '';
+
+    function goWithParam(key, value) {
+        var url = new URL(window.location.href);
+        if (value) {
+            url.searchParams.set(key, value);
+        } else {
+            url.searchParams.delete(key);
+        }
+        window.location.href = url.toString();
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function () {
+            goWithParam('sort', sortSelect.value);
+        });
+    }
+    if (periodSelect) {
+        periodSelect.addEventListener('change', function () {
+            goWithParam('period', periodSelect.value);
+        });
+    }
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+            var url = new URL(window.location.href);
+            url.searchParams.delete('sort');
+            url.searchParams.delete('period');
+            window.location.href = url.toString();
+        });
+    }
+})();
+</script>

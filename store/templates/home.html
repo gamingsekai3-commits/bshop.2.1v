@@ -1,0 +1,34 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block content %}
+<!-- Hero slider: slides are made in the admin (Customize -> Home page slider) -->
+{% if hero_slides %}
+<link href="{% static 'css/hero-slider.css' %}" rel="stylesheet" />
+<section class="pt-4">
+    <div class="container px-4 px-lg-5">
+        <div class="hero-slider" data-hero-slider>
+            <div class="hero-slider__track">
+                {% for s in hero_slides %}
+                <div class="hero-slide hero-btn-{{ s.position }}">
+                    <img src="{{ s.image_url }}" alt="{{ s.product.name }}">
+                    <a class="hero-slide__btn" href="{% url 'product_detail' s.product.id %}">{{ s.button }} <i class="bi bi-arrow-right"></i></a>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" class="hero-slider__btn hero-slider__btn--prev" aria-label="Previous"><i class="bi bi-chevron-left"></i></button>
+            <button type="button" class="hero-slider__btn hero-slider__btn--next" aria-label="Next"><i class="bi bi-chevron-right"></i></button>
+            <div class="hero-slider__dots"></div>
+        </div>
+    </div>
+</section>
+<script src="{% static 'js/hero-slider.js' %}"></script>
+{% endif %}
+<!-- Section-->
+<section class="py-5">
+    <div class="container px-4 px-lg-5 mt-3">
+        {% include 'includes/product_list.html' with products=products %}
+    </div>
+</section>
+{% endblock %}

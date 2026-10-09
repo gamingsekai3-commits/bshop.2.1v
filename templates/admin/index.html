@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+{% load i18n humanize dashboard_stats %}
+
+{% block content_title %}<h1>{{ T.admin_dashboard }}</h1>{% endblock %}
+
+{% block coltype %}colM dashboard-page{% endblock %}
+
+{% block content %}
+<div class="dashboard-stats">
+  <div class="stat-card stat-card--accent">
+    <div class="stat-card__top">
+      <span class="stat-card__label">{{ T.admin_revenue }}</span>
+      <span class="stat-card__icon stat-card__icon--circle">₮</span>
+    </div>
+    <div class="stat-card__value">{% total_revenue as revenue %}{{ revenue|intcomma }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__top">
+      <span class="stat-card__label">{{ T.admin_products }}</span>
+      <span class="stat-card__icon">▣</span>
+    </div>
+    <div class="stat-card__value">{% total_products as products %}{{ products|intcomma }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__top">
+      <span class="stat-card__label">{{ T.admin_orders }}</span>
+      <span class="stat-card__icon">☑</span>
+    </div>
+    <div class="stat-card__value">{% total_orders as orders %}{{ orders|intcomma }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__top">
+      <span class="stat-card__label">{{ T.admin_customers }}</span>
+      <span class="stat-card__icon">★</span>
+    </div>
+    <div class="stat-card__value">{% total_customers as customers %}{{ customers|intcomma }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__top">
+      <span class="stat-card__label">{{ T.admin_low_stock }}</span>
+      <span class="stat-card__icon">⚠</span>
+    </div>
+    <div class="stat-card__value">{% low_stock_count as low_stock %}{{ low_stock|intcomma }}</div>
+  </div>
+</div>
+
+{# Two revenue charts side by side, 4 : 3 (daily is wider). Stacks on narrow screens. #}
+<div class="dashboard-charts">
+  {% revenue_by_day as daily %}
+  {% include "admin/_revenue_chart.html" with chart=daily title=T.admin_day_title %}
+
+  {% revenue_by_month as months %}
+  {% include "admin/_revenue_chart.html" with chart=months title=T.admin_rev_title %}
+</div>
+
+<div class="dashboard-below">
+  <div class="module" id="recent-actions-module">
+    <h2>{{ T.admin_recent_actions }}</h2>
+    {% load log %}
+    {% get_admin_log 10 as admin_log for_user user %}
+    {% if not admin_log %}
+      <p>{{ T.admin_nothing_yet }}</p>
+    {% else %}
+      <ul class="actionlist">
+      {% for entry in admin_log %}
+        <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+          {% if entry.is_deletion or not entry.get_admin_url %}
+            {{ entry.object_repr }}
+          {% else %}
+            <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+          {% endif %}
+          <br>
+          {% if entry.content_type %}
+            <span class="mini quiet">{{ entry.content_type.name|capfirst }}</span>
+          {% else %}
+            <span class="mini quiet">{{ T.admin_unknown }}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div class="dashboard-card">
+    <div class="dashboard-card__head">
+      <span>{{ T.admin_categories }}</span>
+    </div>
+    <div class="dashboard-card__body dashboard-card__donut">
+      <div class="donut-number">{% total_categories as categories %}{{ categories|intcomma }}</div>
+      <ul class="donut-list">
+        <li>{{ T.admin_pending_orders }}: {% pending_orders as pending %}{{ pending|intcomma }}</li>
+        <li>{{ T.admin_low_stock_products }}: {% low_stock_count as low_stock2 %}{{ low_stock2|intcomma }}</li>
+        <li>{{ T.admin_total_customers }}: {% total_customers as customers2 %}{{ customers2|intcomma }}</li>
+      </ul>
+      <a href="{% url 'admin:store_category_changelist' %}" class="button dashboard-card__button">{{ T.admin_view_categories }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

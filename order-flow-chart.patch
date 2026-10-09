@@ -1,0 +1,280 @@
+--- a/store/templatetags/dashboard_stats.py
++++ b/store/templatetags/dashboard_stats.py
+@@ -1,5 +1,5 @@
+ from django import template
+-from django.db.models import DecimalField, ExpressionWrapper, F, Sum
++from django.db.models import Count, DecimalField, ExpressionWrapper, F, Sum
+ 
+ from cart.models import Order, OrderItem
+ from store.models import Category, Customer, Product
+@@ -49,4 +49,38 @@
+ @register.simple_tag
+ def low_stock_count():
+     """Products with 5 or fewer left in stock."""
+-    return Product.objects.filter(stock__lte=5).count()
+\ No newline at end of file
++    return Product.objects.filter(stock__lte=5).count()
++
++
++@register.simple_tag
++def order_flow():
++    """Order counts per stage, for the "Order flow" chart on the dashboard.
++
++    Every order sits in exactly one stage (`Order.status`), so the four
++    counts add up to the total. `archived` is a separate question - it is
++    the soft-delete flag (`is_active`), which cuts across the stages - so it
++    is reported on its own rather than as a fifth stage.
++
++    One GROUP BY query for the stages plus one COUNT for archived.
++    """
++    counts = dict(
++        # order_by() clears Order.Meta.ordering so it can't leak into the GROUP BY.
++        Order.objects.order_by().values_list('status').annotate(n=Count('id'))
++    )
++    total = sum(counts.values())
++
++    def stage(status):
++        n = counts.get(status, 0)
++        return {
++            'count': n,
++            'percent': int(n * 100 / total + 0.5) if total else 0,
++        }
++
++    return {
++        'total': total,
++        'pending': stage(Order.STATUS_PENDING),
++        'confirmed': stage(Order.STATUS_CONFIRMED),
++        'delivered': stage(Order.STATUS_DELIVERED),
++        'cancelled': stage(Order.STATUS_CANCELLED),
++        'archived': Order.objects.filter(is_active=False).count(),
++    }
+--- a/store/translations.py
++++ b/store/translations.py
+@@ -215,6 +215,17 @@
+         'admin_overview': 'Тойм',
+         'admin_details': 'Дэлгэрэнгүй',
+         'admin_chart_soon': 'Захиалгын график удахгүй нэмэгдэнэ',
++
++        # Admin panel: order flow chart (dashboard)
++        'admin_flow_title': 'Захиалгын урсгал',
++        'admin_flow_placed': 'Захиалга үүссэн',
++        'admin_status_pending': 'Хүлээгдэж буй',
++        'admin_status_confirmed': 'Баталгаажсан',
++        'admin_status_delivered': 'Хүргэгдсэн',
++        'admin_status_cancelled': 'Цуцлагдсан',
++        'admin_flow_archived': 'Архивлагдсан (хэрэглэгчид харагдахгүй)',
++        'admin_flow_hint': 'Шат дээр дарж тухайн захиалгуудыг харна уу.',
++
+         'admin_categories': 'Ангилал',
+         'admin_pending_orders': 'Хүлээгдэж буй захиалга',
+         'admin_low_stock_products': 'Үлдэгдэл багатай бараа',
+@@ -453,6 +464,17 @@
+         'admin_overview': 'Overview',
+         'admin_details': 'Details',
+         'admin_chart_soon': 'Order chart coming soon',
++
++        # Admin panel: order flow chart (dashboard)
++        'admin_flow_title': 'Order flow',
++        'admin_flow_placed': 'Order placed',
++        'admin_status_pending': 'Pending',
++        'admin_status_confirmed': 'Confirmed',
++        'admin_status_delivered': 'Delivered',
++        'admin_status_cancelled': 'Cancelled',
++        'admin_flow_archived': 'Archived (hidden from customers)',
++        'admin_flow_hint': 'Click a stage to see its orders.',
++
+         'admin_categories': 'Categories',
+         'admin_pending_orders': 'Pending orders',
+         'admin_low_stock_products': 'Low-stock products',
+--- a/templates/admin/index.html
++++ b/templates/admin/index.html
+@@ -51,11 +51,90 @@
+ <div class="dashboard-grid">
+   <div class="dashboard-card dashboard-card--wide">
+     <div class="dashboard-card__head">
+-      <span>{{ T.admin_overview }}</span>
++      <span>{{ T.admin_flow_title }}</span>
+       <a href="{% url 'admin:cart_order_changelist' %}" class="dashboard-card__cta">{{ T.admin_details }}</a>
+     </div>
+-    <div class="dashboard-card__body dashboard-card__placeholder">
+-      {{ T.admin_chart_soon }}
++    <div class="dashboard-card__body order-flow">
++      {% order_flow as flow %}
++      {% url 'admin:cart_order_changelist' as orders_url %}
++
++      {# Drawn as inline SVG (no Graphviz install, no image files) so it follows the light/dark theme and the MN/EN switch. Colours live in custom_theme.css. #}
++      <div class="order-flow__scroll">
++        <svg class="order-flow__svg" viewBox="0 0 760 276" role="group" aria-label="{{ T.admin_flow_title }}">
++          <defs>
++            <marker id="order-flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
++              <path class="order-flow__arrowhead" d="M0 0 L10 5 L0 10 z"/>
++            </marker>
++          </defs>
++
++          {# ---- connectors (drawn first so the boxes sit on top) ---- #}
++          <path class="order-flow__arrow" d="M160 86 H205" marker-end="url(#order-flow-arrow)"/>
++          <path class="order-flow__arrow" d="M355 86 H400" marker-end="url(#order-flow-arrow)"/>
++          <path class="order-flow__arrow" d="M550 86 H595" marker-end="url(#order-flow-arrow)"/>
++          <path class="order-flow__arrow order-flow__arrow--cancel" d="M280 132 V214 H303" marker-end="url(#order-flow-arrow)"/>
++          <path class="order-flow__arrow order-flow__arrow--cancel" d="M475 132 V214 H453" marker-end="url(#order-flow-arrow)"/>
++
++          {# ---- 1. Order placed (all orders) ---- #}
++          <a class="order-flow__node order-flow__node--start" href="{{ orders_url }}">
++            <title>{{ T.admin_flow_placed }}: {{ flow.total }}</title>
++            <rect class="order-flow__base" x="10" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__tint" x="10" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__box" x="10" y="40" width="150" height="92" rx="12"/>
++            <text class="order-flow__label" x="85" y="76" text-anchor="middle">{{ T.admin_flow_placed }}</text>
++            <text class="order-flow__count" x="85" y="110" text-anchor="middle">{{ flow.total|intcomma }}</text>
++          </a>
++
++          {# ---- 2. Pending ---- #}
++          <a class="order-flow__node order-flow__node--pending" href="{{ orders_url }}?status__exact=pending">
++            <title>{{ T.admin_status_pending }}: {{ flow.pending.count }}</title>
++            <rect class="order-flow__base" x="205" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__tint" x="205" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__box" x="205" y="40" width="150" height="92" rx="12"/>
++            <text class="order-flow__label" x="280" y="68" text-anchor="middle">{{ T.admin_status_pending }}</text>
++            <text class="order-flow__count" x="280" y="101" text-anchor="middle">{{ flow.pending.count|intcomma }}</text>
++            <text class="order-flow__pct" x="280" y="122" text-anchor="middle">{{ flow.pending.percent }}%</text>
++          </a>
++
++          {# ---- 3. Confirmed ---- #}
++          <a class="order-flow__node order-flow__node--confirmed" href="{{ orders_url }}?status__exact=confirmed">
++            <title>{{ T.admin_status_confirmed }}: {{ flow.confirmed.count }}</title>
++            <rect class="order-flow__base" x="400" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__tint" x="400" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__box" x="400" y="40" width="150" height="92" rx="12"/>
++            <text class="order-flow__label" x="475" y="68" text-anchor="middle">{{ T.admin_status_confirmed }}</text>
++            <text class="order-flow__count" x="475" y="101" text-anchor="middle">{{ flow.confirmed.count|intcomma }}</text>
++            <text class="order-flow__pct" x="475" y="122" text-anchor="middle">{{ flow.confirmed.percent }}%</text>
++          </a>
++
++          {# ---- 4. Delivered ---- #}
++          <a class="order-flow__node order-flow__node--delivered" href="{{ orders_url }}?status__exact=delivered">
++            <title>{{ T.admin_status_delivered }}: {{ flow.delivered.count }}</title>
++            <rect class="order-flow__base" x="595" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__tint" x="595" y="40" width="150" height="92" rx="12"/>
++            <rect class="order-flow__box" x="595" y="40" width="150" height="92" rx="12"/>
++            <text class="order-flow__label" x="670" y="68" text-anchor="middle">{{ T.admin_status_delivered }}</text>
++            <text class="order-flow__count" x="670" y="101" text-anchor="middle">{{ flow.delivered.count|intcomma }}</text>
++            <text class="order-flow__pct" x="670" y="122" text-anchor="middle">{{ flow.delivered.percent }}%</text>
++          </a>
++
++          {# ---- Cancelled (branch from Pending or Confirmed) ---- #}
++          <a class="order-flow__node order-flow__node--cancelled" href="{{ orders_url }}?status__exact=cancelled">
++            <title>{{ T.admin_status_cancelled }}: {{ flow.cancelled.count }}</title>
++            <rect class="order-flow__base" x="303" y="168" width="150" height="92" rx="12"/>
++            <rect class="order-flow__tint" x="303" y="168" width="150" height="92" rx="12"/>
++            <rect class="order-flow__box" x="303" y="168" width="150" height="92" rx="12"/>
++            <text class="order-flow__label" x="378" y="196" text-anchor="middle">{{ T.admin_status_cancelled }}</text>
++            <text class="order-flow__count" x="378" y="229" text-anchor="middle">{{ flow.cancelled.count|intcomma }}</text>
++            <text class="order-flow__pct" x="378" y="250" text-anchor="middle">{{ flow.cancelled.percent }}%</text>
++          </a>
++        </svg>
++      </div>
++
++      <p class="order-flow__note">
++        {{ T.admin_flow_archived }}:
++        <a href="{{ orders_url }}?is_active__exact=0"><strong>{{ flow.archived|intcomma }}</strong></a>
++        <span class="order-flow__hint">&middot; {{ T.admin_flow_hint }}</span>
++      </p>
+     </div>
+   </div>
+ 
+--- a/static/admin/css/custom_theme.css
++++ b/static/admin/css/custom_theme.css
+@@ -751,6 +751,93 @@
+     max-width: none;
+ }
+ 
++/* ---- Dashboard: order flow chart ---------------------------------------
++   Stage colours follow the same light/dark switch as the rest of the admin.
++   Each node sets --of-color; the tint, outline and hover all read from it. */
++.order-flow {
++    --of-start: #777777;
++    --of-pending: #c9880a;
++    --of-confirmed: #2f6fd6;
++    --of-delivered: #27ae60;
++    --of-cancelled: #c0392b;
++}
++html[data-theme="dark"] .order-flow {
++    --of-start: #888888;
++    --of-pending: #e8c84a;
++    --of-confirmed: #5b9cf5;
++    --of-delivered: #3ecf7a;
++    --of-cancelled: #e84a4a;
++}
++
++/* On narrow screens keep the chart readable and let it scroll sideways
++   instead of shrinking the text to nothing. */
++.order-flow__scroll {
++    overflow-x: auto;
++}
++.order-flow__svg {
++    display: block;
++    width: 100%;
++    min-width: 620px;
++    height: auto;
++}
++
++.order-flow__node {
++    cursor: pointer;
++    outline: none;
++    /* Django's admin base.css underlines every link with a very specific
++       selector (a:not([role="button"], #header a, ...)), which would put a
++       line through the text in each box. !important is the simplest way to
++       win against that selector. */
++    text-decoration: none !important;
++}
++.order-flow__node--start     { --of-color: var(--of-start); }
++.order-flow__node--pending   { --of-color: var(--of-pending); }
++.order-flow__node--confirmed { --of-color: var(--of-confirmed); }
++.order-flow__node--delivered { --of-color: var(--of-delivered); }
++.order-flow__node--cancelled { --of-color: var(--of-cancelled); }
++
++.order-flow__base { fill: var(--body-bg); }
++.order-flow__tint { fill: var(--of-color); opacity: 0.10; }
++.order-flow__box  { fill: none; stroke: var(--of-color); stroke-width: 1.5; }
++
++.order-flow__node:hover .order-flow__tint,
++.order-flow__node:focus-visible .order-flow__tint { opacity: 0.20; }
++.order-flow__node:hover .order-flow__box,
++.order-flow__node:focus-visible .order-flow__box { stroke-width: 3; }
++
++.order-flow__label {
++    fill: var(--body-medium-color);
++    font-family: var(--font-family-primary);
++    font-size: 13px;
++}
++.order-flow__count {
++    fill: var(--body-loud-color);
++    font-family: var(--font-family-heading);
++    font-size: 26px;
++    font-weight: 800;
++}
++.order-flow__pct {
++    fill: var(--body-quiet-color);
++    font-family: var(--font-family-primary);
++    font-size: 12px;
++}
++
++.order-flow__arrow {
++    fill: none;
++    stroke: var(--body-quiet-color);
++    stroke-width: 1.75;
++}
++.order-flow__arrow--cancel { stroke-dasharray: 5 4; }
++.order-flow__arrowhead { fill: var(--body-quiet-color); }
++
++.order-flow__note {
++    margin: 10px 0 0;
++    font-size: 12px;
++    color: var(--body-quiet-color);
++}
++.order-flow__note a { color: var(--body-loud-color); }
++.order-flow__hint { margin-left: 4px; }
++
+ /* ============================================================
+    GLOBAL BACK BUTTON
+    ============================================================ */

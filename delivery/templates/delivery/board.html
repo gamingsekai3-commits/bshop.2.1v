@@ -1,0 +1,7 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Самбар{% endblock %}
+{% block content %}
+<div id="board" data-url="{% url 'delivery:board_action' 'STEP' %}" data-refresh="{% url 'delivery:board_data' %}">
+    {% include 'delivery/_board.html' %}
+</div>
+{% endblock %}

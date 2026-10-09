@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% load static %}
+
+{{ product.price|floatformat:0|intcomma }}₮
+{% block content %}
+<div class="container py-5">
+    <h2 class="mb-4">{{ T.order_confirm_title }}</h2>
+
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>{{ T.table_product }}</th>
+                <th>{{ T.table_options }}</th>
+                <th>{{ T.table_quantity }}</th>
+                <th>{{ T.table_price }}</th>
+                <th>{{ T.table_total }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.options_display|default:"—" }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.price }}₮</td>
+                <td>{{ item.total_price }}₮</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h4 class="text-end">{{ T.total_amount_label }}: {{ cart.get_total_price }}₮</h4>
+
+    <form method="post" action="{% url 'order_create' %}">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label>{{ T.customer_name }}</label>
+            <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label>{{ T.customer_phone }}</label>
+            <input type="text" name="phone" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label>{{ T.customer_address }}</label>
+            <textarea name="address" class="form-control" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">{{ T.place_order_btn }}</button>
+    </form>
+</div>
+{% endblock %}

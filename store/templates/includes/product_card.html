@@ -1,0 +1,36 @@
+{% comment %}
+Reusable product card.
+Renders one product. Works in both grid view and list view because the
+layout is switched purely with CSS on the parent `.product-container`
+(see product_list.html + styles.css "VIEW TOGGLE" section).
+{% endcomment %}
+<div class="col mb-5 product-item">
+    <div class="card h-100">
+        {% if product.is_sale %}
+        <div class="badge bg-danger text-white position-absolute" style="top: 0.5rem; right: 0.5rem;">Sale</div>
+        {% endif %}
+        {% if product.stock == 0 %}
+        <div class="badge bg-secondary text-white position-absolute" style="top: 0.5rem; left: 0.5rem;">{{ T.out_of_stock_label }}</div>
+        {% elif product.stock_state == 'low' %}
+        <div class="badge bg-warning text-dark position-absolute" style="top: 0.5rem; left: 0.5rem;">{{ T.low_stock_label }}</div>
+        {% endif %}
+        <img class="card-img-top{% if product.stock == 0 %} opacity-50{% endif %}" src="{{ product.image.url }}" alt="{{ product.name }}" style="height: 220px; width: 100%; object-fit: cover;" />
+        <div class="card-body p-4">
+            <div class="text-center">
+                <h5 class="fw-bolder">{{ product.name }}</h5>
+                {% if product.is_sale %}
+                <span class="text-muted text-decoration-line-through">{{ product.price|floatformat:0 }}₮</span>
+                <br>
+                <span class="text-danger fw-bold">{{ product.sale_price|floatformat:0 }}₮</span>
+                {% else %}
+                <span>{{ product.price|floatformat:0 }}₮</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+            <div class="text-center">
+                <a class="btn btn-outline-dark mt-auto" href="{% url 'product_detail' product.id %}">{{ T.product_detail_btn }}</a>
+            </div>
+        </div>
+    </div>
+</div>

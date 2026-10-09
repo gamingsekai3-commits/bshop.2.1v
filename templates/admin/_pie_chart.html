@@ -1,0 +1,20 @@
+{# One pie + legend. Needs: pie (from _pie() in store/reports.py), title. #}
+{% load humanize %}
+<div class="ov-card">
+  <h2 class="ov-card__title">{{ title }}</h2>
+  {% if pie.slices %}
+  <div class="ov-pie">
+    <svg viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="{{ title }}">
+      {% for s in pie.slices %}
+        {% if s.full %}<circle cx="100" cy="100" r="90" fill="{{ s.color }}"><title>{{ s.label }}: {{ s.value|intcomma }}</title></circle>
+        {% else %}<path d="{{ s.path }}" fill="{{ s.color }}" stroke="var(--body-bg)" stroke-width="2"><title>{{ s.label }}: {{ s.value|intcomma }} ({{ s.percent }}%)</title></path>{% endif %}
+      {% endfor %}
+    </svg>
+    <ul class="ov-legend">
+      {% for s in pie.slices %}
+      <li><i style="background:{{ s.color }}"></i><span>{{ s.label }}</span><b>{{ s.value|intcomma }} &#8366;</b><em>{{ s.percent }}%</em></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% else %}<p class="ov-empty">{{ T.admin_overview_empty }}</p>{% endif %}
+</div>

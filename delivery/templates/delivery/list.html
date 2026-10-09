@@ -1,0 +1,90 @@
+{% extends 'delivery/base.html' %}
+{% load humanize %}
+{% block title %}{{ T.dl_title }}{% endblock %}
+{% block content %}
+<h1 class="dl-h1">{{ T.dl_title }}</h1>
+
+<div class="dl-stats">
+  <div class="dl-stat"><span class="dl-stat__n">{{ counts.available }}</span><span class="dl-stat__l">{{ T.dl_tab_available }}</span></div>
+  <div class="dl-stat"><span class="dl-stat__n">{{ counts.mine }}</span><span class="dl-stat__l">{{ T.dl_tab_mine }}</span></div>
+  <div class="dl-stat"><span class="dl-stat__n">{{ counts.done }}</span><span class="dl-stat__l">{{ T.dl_tab_done }}</span></div>
+  <div class="dl-stat dl-stat--money">
+    <span class="dl-stat__n">{{ income|floatformat:0|intcomma }}₮</span>
+    <span class="dl-stat__l">{{ T.dl_stat_income }}</span>
+    <span class="dl-stat__note">{{ T.dl_income_note }}</span>
+  </div>
+</div>
+
+<div class="dl-module">
+  <div class="dl-tabs">
+    {% for key, label_key, n in tabs %}
+    <a href="?tab={{ key }}" class="dl-tab{% if tab == key %} active{% endif %}">
+      {% if key == 'available' %}{{ T.dl_tab_available }}{% elif key == 'mine' %}{{ T.dl_tab_mine }}{% elif key == 'done' %}{{ T.dl_tab_done }}{% else %}{{ T.dl_tab_all }}{% endif %}
+      <span class="dl-count">{{ n }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="dl-search">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="{{ T.dl_search }}">
+    <button type="submit" class="dl-btn">{{ T.search_button }}</button>
+  </form>
+
+  {% if tab == 'available' %}<p class="dl-hint">{{ T.dl_available_hint }}</p>{% endif %}
+
+  {% if page.object_list %}
+  <div class="dl-tablewrap">
+  <table class="dl-table">
+    <thead><tr>
+      <th>{{ T.dl_col_order }}</th>
+      <th>{{ T.dl_col_date }}</th>
+      <th>{{ T.dl_col_customer }}</th>
+      <th>{{ T.dl_col_phone }}</th>
+      <th>{{ T.dl_col_address }}</th>
+      <th class="num">{{ T.dl_col_items }}</th>
+      <th class="num">{{ T.dl_col_total }}</th>
+      <th>{{ T.dl_col_status }}</th>
+      <th>{{ T.dl_col_courier }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    {% for o in page.object_list %}
+    <tr>
+      <td><a class="dl-id" href="{% url 'delivery:detail' o.pk %}">#{{ o.pk }}</a></td>
+      <td class="nowrap">{{ o.created_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ o.name }}</td>
+      <td class="nowrap">{{ o.phone }}</td>
+      <td class="addr">{{ o.address|truncatechars:60 }}</td>
+      <td class="num">{{ o.units|default:0 }}</td>
+      <td class="num nowrap">{{ o.total|default:0|floatformat:0|intcomma }}₮</td>
+      <td>{% include 'delivery/_status.html' with status=o.status label=o.get_status_display %}</td>
+      <td>{% if o.courier %}{% if o.courier_id == user.id %}<strong>{{ T.dl_you }}</strong>{% else %}{{ o.courier.get_full_name|default:o.courier.username }}{% endif %}{% else %}—{% endif %}</td>
+      <td class="actions">
+        {% if o.status == 'pending' and not o.courier_id %}
+        <form method="post" action="{% url 'delivery:take' o.pk %}" class="dl-inline"
+              onsubmit="return confirm('{{ T.dl_confirm_take|escapejs }}');">{% csrf_token %}
+          <button type="submit" class="dl-btn dl-btn--primary">{{ T.dl_take }}</button>
+        </form>
+        {% else %}
+        <a class="dl-btn" href="{% url 'delivery:detail' o.pk %}">{{ T.dl_view }}</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if page.paginator.num_pages > 1 %}
+  <div class="dl-pager">
+    {% if page.has_previous %}<a class="dl-btn" href="?{{ base_query }}&page={{ page.previous_page_number }}">‹ {{ T.dl_prev }}</a>{% endif %}
+    <span>{{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="dl-btn" href="?{{ base_query }}&page={{ page.next_page_number }}">{{ T.dl_next }} ›</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="dl-empty">{{ T.dl_empty }}</p>
+  {% endif %}
+</div>
+{% endblock %}

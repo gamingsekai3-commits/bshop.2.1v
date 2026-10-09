@@ -1,0 +1,22 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% load static %}
+
+{{ product.price|floatformat:0|intcomma }}₮
+
+{% block content %}
+<div class="container px-4 px-lg-5 mt-5">
+    {% if result %}
+        {% if corrected_query %}
+        <p class="text-muted mb-4">
+            {{ T.search_no_exact }} <strong>{{ corrected_query }}</strong>
+        </p>
+        {% endif %}
+        {% include 'includes/product_list.html' with products=result %}
+    {% else %}
+        {% if search_value %}
+        <p>{{ T.search_no_results_text }}</p>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

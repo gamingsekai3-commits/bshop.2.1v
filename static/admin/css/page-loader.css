@@ -1,0 +1,48 @@
+/* Full-screen loading overlay shown while the admin navigates to a new
+   page (same idea as the storefront's static/css/page-loader.css), but
+   built from the admin's own theme variables (--header-bg / --primary)
+   so it automatically matches whichever mode — light or dark — is
+   currently active instead of a single hardcoded color. */
+
+#page-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--header-bg, #111111);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease, visibility 0s linear 0.12s;
+}
+
+/* Added by JS the moment a navigation starts. */
+#page-loading-overlay.page-loading-overlay--active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.12s ease;
+}
+
+.page-loading-spinner {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    /* Same gold accent used for admin branding, links and buttons. */
+    background: conic-gradient(from 180deg at 50% 50%, var(--primary, #e8c84a), rgba(232, 200, 74, 0) 75%);
+    -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 6px), #000 calc(100% - 6px));
+    mask: radial-gradient(closest-side, transparent calc(100% - 6px), #000 calc(100% - 6px));
+    animation: page-loading-spin 0.85s linear infinite;
+}
+
+@keyframes page-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-loading-spinner {
+        animation-duration: 1.6s;
+    }
+}

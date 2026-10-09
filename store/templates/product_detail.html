@@ -1,0 +1,144 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% load static %}
+{% load i18n_extras %}
+
+{% block content %}
+
+<div class="container py-5">
+
+    <!-- BREADCRUMB / BACK -->
+    <nav class="mb-4 d-flex flex-wrap align-items-center gap-3" aria-label="breadcrumb">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm rounded-pill">
+            <i class="bi bi-arrow-left me-1"></i>{{ T.back_btn }}
+        </a>
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">{{ T.nav_home }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'category' product.category.name %}">{{ product.category.name|category_name:LANG }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+
+        <div class="row g-0 align-items-center">
+
+            <!-- IMAGE -->
+            <div class="col-md-5">
+                {% if product.image %}
+                <img src="{{ product.image.url }}"
+                     alt="{{ product.name }}"
+                     class="img-fluid"
+                     style="height: 400px; width: 100%; object-fit: cover;">
+                {% endif %}
+            </div>
+
+            <!-- DETAILS -->
+            <div class="col-md-7">
+                <div class="card-body p-4">
+
+                    <h2 class="fw-bold mb-2">
+                        {{ product.name }}
+                    </h2>
+
+                    <p class="text-muted mb-3">
+                        {{ product.description }}
+                    </p>
+
+                    {% if product.is_sale %}
+
+                        <div class="mb-2">
+                            <span class="badge bg-danger">{{ T.sale_label }}</span>
+                        </div>
+
+                        <p class="mb-1">
+                            <span class="text-muted text-decoration-line-through fs-5">
+                                {{ product.price|floatformat:0|intcomma }}₮
+                            </span>
+                        </p>
+
+                        <h3 class="fw-bold text-danger">
+                            {{ product.sale_price|floatformat:0|intcomma }}₮
+                        </h3>
+
+                    {% else %}
+
+                        <h3 class="fw-bold">
+                            {{ product.price|floatformat:0|intcomma }}₮
+                        </h3>
+
+                    {% endif %}
+
+                    <!-- STOCK STATUS -->
+                    <div class="mb-2">
+                        {% if product.stock == 0 %}
+                            <span class="badge bg-secondary">{{ T.out_of_stock_label }}</span>
+                        {% elif product.stock_state == 'low' %}
+                            <span class="badge bg-warning text-dark">{{ T.low_stock_label }}: {{ product.stock }} {{ T.in_stock_label }}</span>
+                        {% else %}
+                            <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>{{ product.stock }} {{ T.in_stock_label }}</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- PRODUCT OPTIONS (flavor, size, color, whatever the admin set up) -->
+                    <!-- Plain dropdowns only - no colour swatches. -->
+                    {% regroup product.options.all by option_type as option_groups %}
+                    {% if option_groups %}
+                    <div id="options-picker" class="mb-3">
+                        {% for group in option_groups %}
+                        <div class="mb-3 option-group">
+                            <label class="form-label fw-semibold" for="option-select-{{ forloop.counter }}">{{ group.grouper }}</label>
+                            <select class="form-select option-select"
+                                    id="option-select-{{ forloop.counter }}"
+                                    data-option-type="{{ group.grouper }}">
+                                {% for opt in group.list %}
+                                {% if opt.is_active %}
+                                <option value="{{ opt.value }}">{{ opt.value }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- BUTTONS -->
+                    <div class="mt-4 d-flex gap-2">
+                        <button class="btn btn-primary rounded-pill px-4"
+                                value="{{ product.id }}"
+                                id="add-cart"
+                                {% if product.stock == 0 %}disabled{% endif %}>
+                            <i class="bi bi-cart-plus me-1"></i>{% if product.stock == 0 %}{{ T.out_of_stock_btn }}{% else %}{{ T.add_to_cart_btn }}{% endif %}
+                        </button>
+
+                    </div>
+                    <div class="row align-items-center mt-3 g-2">
+                        <div class="col-md-auto text-nowrap fw-semibold">
+                        {{ T.quantity_label }}
+                        </div>
+                    <div class="col-md-2">
+        <select class="form-select" aria-label="{{ T.quantity_label }}" id="qty-cart" {% if product.stock == 0 %}disabled{% endif %}>
+        {% for i in "12345"|make_list %}
+        {% if forloop.counter <= product.stock %}
+        <option value="{{ forloop.counter }}" {% if forloop.counter == 1 %}selected{% endif %}>{{ forloop.counter }}</option>
+        {% endif %}
+        {% endfor %}
+        </select>
+                    </div>
+                        <div class="col-md-auto">
+                            <span id="cart-add-feedback" class="text-success small" style="display:none;">
+                            <i class="bi bi-check-circle-fill me-1"></i>{{ T.added_to_cart_feedback }}
+                            </span>
+                            <span id="cart-add-warning" class="text-danger small" style="display:none;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,93 @@
+<div class="rd">
+  <h2 class="rd-title">{{ T.rd_customer_title }}</h2>
+  <dl class="rd-dl">
+    {% for label, value in info %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+  </dl>
+
+  <h3 class="rd-sub">{{ T.rd_items }} <small>({{ period }})</small></h3>
+  {% if orders %}
+  <div class="rd-cards">
+    <div><span>{{ T.admin_orders }}</span><strong>{{ orders|length }}</strong></div>
+    <div><span>{{ T.rd_subtotal }}</span><strong>{{ grand_subtotal }} ₮</strong></div>
+    <div><span>{{ T.rd_tax }} {{ tax_percent }}%</span><strong>{{ grand_tax }} ₮</strong></div>
+    <div><span>{{ T.rd_grand_total }}</span><strong>{{ grand_total }} ₮</strong></div>
+  </div>
+  {% endif %}
+
+  {% for o in orders %}
+  <details class="rd-order"{% if forloop.first %} open{% endif %}>
+    <summary>
+      <strong>{{ T.rd_order_no }}{{ o.id }}</strong>
+      <span>{{ o.date }}</span>
+      <span class="rd-badge">{{ o.status }}</span>
+      <span class="rd-sum">{{ o.total }} ₮</span>
+    </summary>
+
+    <div class="rd-order-body">
+      <div class="rd-scroll">
+        <table class="rd-table">
+          <thead><tr>
+            <th>{{ T.admin_col_name }}</th><th class="num">{{ T.rd_qty }}</th>
+            <th class="num">{{ T.rd_unit_price }}</th><th class="num">{{ T.rd_amount }}</th>
+          </tr></thead>
+          <tbody>
+            {% for it in o.items %}
+            <tr>
+              <td>
+                {% if it.image_url %}<img class="rd-thumb" src="{{ it.image_url }}" alt="">{% endif %}
+                {{ it.name }}{% if it.options %}<br><small>{{ it.options }}</small>{% endif %}
+              </td>
+              <td class="num">{{ it.qty }}</td><td class="num">{{ it.price }}</td><td class="num">{{ it.amount }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3">{{ T.rd_subtotal }}</td><td class="num">{{ o.subtotal }}</td></tr>
+            <tr><td colspan="3">{{ T.rd_tax }} {{ tax_percent }}%</td><td class="num">{{ o.tax }}</td></tr>
+            <tr><td colspan="3">{{ T.rd_grand_total }}</td><td class="num">{{ o.total }}</td></tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="rd-receipt-wrap">
+        <div class="receipt">
+          <div class="rc-logo"><b>Bshop</b><small>{{ T.rd_receipt }}</small></div>
+
+          <div class="rc-kv">
+            <b>{{ T.admin_report_date }}:</b><span>{{ o.date }}</span>
+            <b>{{ T.rd_customer }}:</b><span>{{ o.name }}</span>
+            <b>{{ T.customer_phone }}:</b><span>{{ o.phone }}</span>
+            {% if o.address %}<b>{{ T.rd_address }}:</b><span>{{ o.address }}</span>{% endif %}
+            <b>{{ T.admin_col_status }}:</b><span>{{ o.status }}</span>
+            <b>{{ T.rd_slip }}:</b><span>{{ o.slip }}</span>
+          </div>
+
+          <hr class="rc-line">
+          <div class="rc-items">
+            <b>{{ T.rd_desc_col }}:</b><b>{{ T.rd_qty }}</b><b class="r">{{ T.rd_amount }}:</b>
+            {% for it in o.items %}
+            <span>{{ it.name }}{% if it.options %}<small>{{ it.options }}</small>{% endif %}</span>
+            <span>{{ it.qty }}</span>
+            <span class="r">{{ it.amount }} ₮</span>
+            {% endfor %}
+          </div>
+          <hr class="rc-line">
+
+          <div class="rc-totals">
+            <span>{{ T.rd_subtotal }}:</span><span class="r">{{ o.subtotal }} ₮</span>
+            <span>{{ T.rd_tax }} {{ tax_percent }}%:</span><span class="r">{{ o.tax }} ₮</span>
+            <b>{{ T.rd_grand_total }}:</b><b class="r">{{ o.total }} ₮</b>
+          </div>
+
+          <div class="rc-thanks">{{ T.rd_thanks }}</div>
+          <div class="rc-code">{{ o.barcode_text }}</div>
+          {{ o.barcode }}
+        </div>
+        <button type="button" class="button rd-print" data-print-receipt>{{ T.rd_print }}</button>
+      </div>
+    </div>
+  </details>
+  {% empty %}
+  <p class="rd-empty">{{ T.rd_no_orders }}</p>
+  {% endfor %}
+</div>

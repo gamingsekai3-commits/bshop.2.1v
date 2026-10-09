@@ -1,0 +1,12 @@
+{% extends 'delivery/base.html' %}
+{% block content %}
+<div class="dl-login">
+  <div class="dl-module">
+    <h1 class="dl-caption">{{ T.dl_forbidden_title }}</h1>
+    <p class="dl-pad">{{ T.dl_forbidden_text }}</p>
+    <form method="post" action="{% url 'delivery:logout' %}" class="dl-pad">{% csrf_token %}
+      <button type="submit" class="dl-btn">{{ T.dl_logout }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

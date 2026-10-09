@@ -1,0 +1,15 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Хүргэлтүүд{% endblock %}
+{% block content %}
+<h2>Хүргэлтүүд</h2>
+<div class="chips">
+    <a href="?f=active" {% if flt == 'active' %}class="on"{% endif %}>Идэвхтэй</a>
+    <a href="?f=done" {% if flt == 'done' %}class="on"{% endif %}>Дууссан</a>
+    <a href="?f=all" {% if flt == 'all' %}class="on"{% endif %}>Бүгд</a>
+</div>
+{% for d in deliveries %}
+    {% include 'delivery/_card.html' %}
+{% empty %}
+    <div class="card muted">Хүргэлт олдсонгүй.</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Нэвтрэх{% endblock %}
+{% block content %}
+<div class="card login">
+    <h1>Хүргэгчийн нэвтрэлт</h1>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        {% if form.non_field_errors %}<div class="flash flash-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        {{ form.password }}
+        <button class="btn btn-primary" type="submit">НЭВТРЭХ</button>
+    </form>
+</div>
+{% endblock %}

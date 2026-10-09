@@ -1,0 +1,42 @@
+{% load i18n %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}">
+  <span class="burger-bar"></span>
+  <span class="burger-bar"></span>
+  <span class="burger-bar"></span>
+</button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+  <div class="sidebar-profile">
+    <div class="sidebar-avatar">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="8" r="4" fill="currentColor"/>
+        <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="sidebar-username">{{ request.user.get_full_name|default:request.user.username }}</div>
+    <div class="sidebar-email">{{ request.user.email|default:"—" }}</div>
+  </div>
+
+  <input type="search" id="nav-filter"
+         placeholder="{% translate 'Start typing to filter…' %}"
+         aria-label="{% translate 'Filter navigation items' %}">
+
+  {% comment %}
+  Same markup Django's own admin/app_list.html uses for a real app group: a
+  <div class="module"> with an <div class="app-header"><span/a class="section">
+  inside. Reusing the stock classes (app-*, module, current-app, app-header,
+  section) means it gets the same header look and active-page highlight the
+  real app groups get, for free, from the CSS rules that already target
+  those classes. Unlike the real app groups, Stock has no models under it
+  to expand, so its header stays a real link rather than a toggle.
+  {% endcomment %}
+  <div class="app-stock module{% if request.path == '/admin/stock/' %} current-app{% endif %}">
+    <div class="app-header">
+      <a href="{% url 'admin_stock' %}" class="section">
+        {{ T.admin_nav_stock }}
+      </a>
+    </div>
+  </div>
+
+  {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+</nav>
+<div class="sidebar-backdrop"></div>

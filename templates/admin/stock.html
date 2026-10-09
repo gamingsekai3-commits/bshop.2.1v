@@ -1,0 +1,668 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static humanize l10n admin_pager %}
+
+{% block title %}{{ T.admin_stock_title }} | {{ T.admin_site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/popup-edit.css' %}">
+<style>
+    .stock-page {
+        width: 100%;
+    }
+
+    .stock-summary {
+        display: grid;
+        grid-template-columns: minmax(280px, 1.15fr) repeat(2, minmax(150px, .7fr));
+        gap: 18px;
+        margin-bottom: 22px;
+    }
+
+    .stock-summary-card {
+        min-height: 116px;
+        padding: 20px 22px;
+        background: var(--darkened-bg);
+        border: 1px solid var(--hairline-color);
+        border-radius: var(--admin-radius);
+        box-shadow: var(--admin-shadow);
+    }
+
+    .stock-summary-card--value {
+        background: var(--darkened-bg);
+    }
+
+    .stock-summary-label {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--body-quiet-color);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+
+    .stock-summary-value {
+        display: block;
+        color: var(--body-loud-color);
+        font-family: var(--font-family-heading);
+        font-size: 27px;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .stock-summary-meta {
+        display: flex;
+        gap: 18px;
+        margin-top: 10px;
+        color: var(--body-quiet-color);
+        font-size: 12px;
+    }
+
+    .stock-summary-meta span::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin: 0 6px 1px 0;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .stock-summary-meta .ok { color: #2f9e57; }
+    .stock-summary-meta .low { color: #c9880a; }
+    .stock-summary-meta .out { color: var(--error-fg); }
+
+    .stock-tabs {
+        display: flex;
+        gap: 28px;
+        border-bottom: 1px solid var(--hairline-color);
+        margin-bottom: 18px;
+    }
+
+    .stock-tab {
+        position: relative;
+        padding: 0 0 11px;
+        color: var(--body-quiet-color);
+        font-size: 13px;
+        text-decoration: none;
+    }
+
+    .stock-tab.is-active {
+        color: var(--link-selected-fg);
+        font-weight: 700;
+    }
+
+    .stock-tab.is-active::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: -1px;
+        left: 0;
+        height: 2px;
+        background: var(--primary);
+    }
+
+    .stock-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .stock-search-wrap {
+        position: relative;
+        width: min(360px, 100%);
+    }
+
+    .stock-search-icon {
+        position: absolute;
+        top: 50%;
+        left: 13px;
+        transform: translateY(-50%);
+        color: var(--body-quiet-color);
+        font-size: 14px;
+        pointer-events: none;
+    }
+
+    .stock-search {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 13px 9px 36px;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: var(--darkened-bg);
+        color: var(--body-fg);
+        font-family: var(--font-family-primary);
+        font-size: 13px;
+    }
+
+    .stock-search:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--selected-bg);
+    }
+
+    .stock-actions {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+    }
+
+    .stock-filter {
+        position: relative;
+    }
+
+    .stock-filter summary,
+    .stock-add-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 36px;
+        box-sizing: border-box;
+        padding: 0 13px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--admin-radius-sm);
+        background: var(--darkened-bg);
+        color: var(--body-fg);
+        font-family: var(--font-family-primary);
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .stock-filter summary::-webkit-details-marker { display: none; }
+    .stock-filter summary:hover,
+    .stock-add-link:hover { border-color: var(--primary); color: var(--primary); }
+
+    .stock-filter-menu {
+        position: absolute;
+        z-index: 20;
+        top: calc(100% + 7px);
+        right: 0;
+        min-width: 155px;
+        padding: 6px;
+        border: 1px solid var(--hairline-color);
+        border-radius: var(--admin-radius-sm);
+        background: var(--darkened-bg);
+        box-shadow: var(--admin-shadow);
+    }
+
+    .stock-filter-menu a {
+        display: block;
+        padding: 8px 10px;
+        border-radius: 6px;
+        color: var(--body-fg);
+        font-size: 12px;
+        text-decoration: none;
+    }
+
+    .stock-filter-menu a:hover,
+    .stock-filter-menu a.is-active {
+        background: var(--selected-bg);
+        color: var(--link-selected-fg);
+    }
+
+    .stock-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--hairline-color);
+        border-radius: var(--admin-radius);
+        background: var(--body-bg);
+        box-shadow: var(--admin-shadow);
+    }
+
+    .stock-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+    }
+
+    .stock-table th {
+        padding: 13px 15px;
+        background: var(--darkened-bg);
+        color: var(--body-quiet-color);
+        font-family: var(--font-family-heading);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .stock-table td {
+        padding: 13px 15px;
+        border-top: 1px solid var(--hairline-color);
+        color: var(--body-fg);
+        font-size: 12px;
+        vertical-align: middle;
+    }
+
+    .stock-table tbody tr:hover {
+        background: var(--selected-bg);
+    }
+
+    .stock-product {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 220px;
+    }
+
+    .stock-thumb {
+        width: 38px;
+        height: 38px;
+        flex: none;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--hairline-color);
+        border-radius: 9px;
+        background: var(--darkened-bg);
+        color: var(--primary);
+        font-family: var(--font-family-heading);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .stock-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .stock-product-name {
+        display: block;
+        max-width: 235px;
+        overflow: hidden;
+        color: var(--body-loud-color);
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .stock-category,
+    .stock-sku,
+    .stock-price {
+        color: var(--body-medium-color);
+        white-space: nowrap;
+    }
+
+    .stock-price {
+        font-weight: 600;
+    }
+
+    .stock-count {
+        color: var(--body-loud-color);
+        font-family: var(--font-family-heading);
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .stock-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+        text-transform: uppercase;
+    }
+
+    .stock-status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .stock-status--ok { color: #2f9e57; }
+    .stock-status--low { color: #c9880a; }
+    .stock-status--out { color: var(--error-fg); }
+
+    .stock-restock {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .stock-restock input {
+        width: 55px;
+        box-sizing: border-box;
+        padding: 6px 7px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--darkened-bg);
+        color: var(--body-fg);
+        font-family: var(--font-family-primary);
+        font-size: 11px;
+        text-align: center;
+    }
+
+    .stock-restock button {
+        padding: 6px 9px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--primary);
+        color: var(--button-fg);
+        font-family: var(--font-family-primary);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .stock-restock button:hover {
+        background: var(--secondary);
+    }
+
+    .stock-edit-btn {
+        padding: 6px 12px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--primary);
+        color: var(--button-fg);
+        font-family: var(--font-family-primary);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .stock-edit-btn:hover { background: var(--secondary); }
+
+    /* restock popup (reuses .popup-edit-overlay from popup-edit.css) */
+    .stock-modal {
+        position: relative;
+        width: min(380px, 92vw);
+        padding: 22px 26px;
+        border-radius: 14px;
+        background: var(--body-bg, #fff);
+        color: var(--body-fg);
+        box-shadow: 0 25px 80px rgba(0,0,0,.5);
+        transform: translateY(16px) scale(.96);
+        transition: transform .5s ease;
+    }
+    .popup-edit-overlay.is-open .stock-modal { transform: none; }
+    .stock-modal h2 { margin: 0 34px 4px 0; font-size: 17px; }
+    .stock-modal .sm-now { margin: 0 0 18px; color: var(--body-quiet-color); font-size: 13px; }
+    .stock-modal .sm-now strong { color: var(--body-loud-color); }
+    .stock-modal label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
+    .stock-modal .sm-qty { display: flex; gap: 8px; align-items: center; }
+    .stock-modal .sm-qty input {
+        width: 100%; height: 42px; box-sizing: border-box; text-align: center;
+        border: 1.5px solid var(--border-color); border-radius: 10px;
+        background: var(--darkened-bg); color: var(--body-fg); font-size: 16px; font-weight: 700;
+    }
+    .stock-modal .sm-qty input:focus { outline: none; border-color: var(--primary); }
+    .stock-modal .sm-step {
+        flex: none; width: 42px; height: 42px; border-radius: 10px; cursor: pointer;
+        border: 1.5px solid var(--border-color); background: transparent; color: var(--body-fg);
+        font-size: 20px; font-weight: 700; line-height: 1;
+    }
+    .stock-modal .sm-step:hover { border-color: var(--primary); color: var(--primary); }
+    .stock-modal .sm-after { margin: 12px 0 0; font-size: 13px; color: var(--body-quiet-color); }
+    .stock-modal .sm-after strong { color: var(--primary); }
+    .stock-modal .sm-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .stock-modal .sm-actions button {
+        height: 38px; padding: 0 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .stock-modal .sm-cancel { border: 1.5px solid var(--border-color); background: transparent; color: var(--body-fg); }
+    .stock-modal .sm-save { border: 0; background: var(--primary); color: var(--button-fg); }
+    .stock-modal .sm-save:hover { background: var(--secondary); }
+
+    .stock-empty {
+        padding: 45px 20px !important;
+        color: var(--body-quiet-color) !important;
+        text-align: center;
+    }
+
+    @media (max-width: 850px) {
+        .stock-summary {
+            grid-template-columns: 1fr 1fr;
+        }
+        .stock-summary-card--value {
+            grid-column: 1 / -1;
+        }
+        .stock-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .stock-search-wrap {
+            width: 100%;
+        }
+        .stock-actions {
+            justify-content: flex-end;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .stock-summary {
+            grid-template-columns: 1fr;
+        }
+        .stock-summary-card--value {
+            grid-column: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content_title %}<h1>{{ T.admin_stock_title }}</h1>{% endblock %}
+
+{% block content %}
+<div class="stock-page">
+    <div class="stock-summary">
+        <div class="stock-summary-card stock-summary-card--value">
+            <span class="stock-summary-label">{{ T.admin_total_stock_value }}</span>
+            <span class="stock-summary-value">₮{{ total_asset_value|floatformat:0|intcomma }}</span>
+            <div class="stock-summary-meta">
+                <span class="ok">{{ T.admin_in_stock }}: {{ in_stock_count }}</span>
+                <span class="low">{{ T.admin_low }}: {{ low_stock_count }}</span>
+                <span class="out">{{ T.admin_out_of_stock }}: {{ out_of_stock_count }}</span>
+            </div>
+        </div>
+
+        <div class="stock-summary-card">
+            <span class="stock-summary-label">{{ T.admin_total_products }}</span>
+            <span class="stock-summary-value">{{ total_products }}</span>
+        </div>
+
+        <div class="stock-summary-card">
+            <span class="stock-summary-label">{{ T.admin_total_stock_units }}</span>
+            <span class="stock-summary-value">{{ total_stock_units }}</span>
+        </div>
+    </div>
+
+    <div class="stock-tabs">
+        <a class="stock-tab is-active" href="{% url 'admin_stock' %}">{{ T.admin_inventory }}</a>
+        <a class="stock-tab" href="{% url 'admin:store_product_changelist' %}">{{ T.admin_product_list }}</a>
+    </div>
+
+    <form class="stock-toolbar" method="get">
+        <div class="stock-search-wrap">
+            <span class="stock-search-icon">⌕</span>
+            <input class="stock-search" type="search" name="q" value="{{ search_value }}" placeholder="{{ T.admin_search_inventory }}">
+        </div>
+
+        <div class="stock-actions">
+            <details class="stock-filter">
+                <summary>☷ {{ T.admin_filters }}</summary>
+                <div class="stock-filter-menu">
+                    <a href="{% url 'admin_stock' %}{% if search_value %}?q={{ search_value|urlencode }}{% endif %}" class="{% if status == 'all' %}is-active{% endif %}">{{ T.admin_all }}</a>
+                    <a href="{% url 'admin_stock' %}?status=out{% if search_value %}&q={{ search_value|urlencode }}{% endif %}" class="{% if status == 'out' %}is-active{% endif %}">{{ T.admin_out_of_stock }}</a>
+                    <a href="{% url 'admin_stock' %}?status=low{% if search_value %}&q={{ search_value|urlencode }}{% endif %}" class="{% if status == 'low' %}is-active{% endif %}">{{ T.admin_low_stock_status }}</a>
+                    <a href="{% url 'admin_stock' %}?status=ok{% if search_value %}&q={{ search_value|urlencode }}{% endif %}" class="{% if status == 'ok' %}is-active{% endif %}">{{ T.admin_in_stock }}</a>
+                </div>
+            </details>
+            <a class="stock-add-link" href="{% url 'admin:store_product_add' %}">＋ {{ T.admin_add_product }}</a>
+        </div>
+    </form>
+
+    <div class="stock-table-wrap">
+        <table class="stock-table">
+            <thead>
+                <tr>
+                    <th>{{ T.admin_col_name }}</th>
+                    <th>{{ T.admin_col_category }}</th>
+                    <th>SKU</th>
+                    <th>{{ T.admin_col_price }}</th>
+                    <th>{{ T.admin_col_stock }}</th>
+                    <th>{{ T.admin_col_status }}</th>
+                    <th>{{ T.admin_col_action }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <div class="stock-product">
+                            <div class="stock-thumb">
+                                {% if product.image %}
+                                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                                {% else %}
+                                    {{ product.name|first|upper }}
+                                {% endif %}
+                            </div>
+                            <a class="stock-product-name" data-edit-popup href="{% url 'admin:store_product_change' product.id %}">{{ product.name }}</a>
+                        </div>
+                    </td>
+                    <td class="stock-category">{{ product.category.name }}</td>
+                    <td class="stock-sku">ZKS{{ product.id|stringformat:"04d" }}</td>
+                    <td class="stock-price">₮{{ product.price|floatformat:0|intcomma }}</td>
+                    <td class="stock-count">{{ product.stock }}</td>
+                    <td>
+                        {% if product.stock_state == 'out' %}
+                            <span class="stock-status stock-status--out">{{ T.admin_out_of_stock }}</span>
+                        {% elif product.stock_state == 'low' %}
+                            <span class="stock-status stock-status--low">{{ T.admin_low_stock_status }}</span>
+                        {% else %}
+                            <span class="stock-status stock-status--ok">{{ T.admin_in_stock }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="stock-edit-btn" data-restock
+                                data-id="{{ product.id }}" data-name="{{ product.name }}" data-stock="{{ product.stock }}" data-cost="{{ product.cost_price|unlocalize }}">
+                            ✎ {{ T.admin_btn_edit }}
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="stock-empty">{{ T.admin_no_products }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pager %}{% bshop_report_pager pager %}{% endif %}
+</div>
+
+<!-- Edit popup (product form in an iframe) -->
+<div id="se-edit-overlay" class="popup-edit-overlay">
+  <div class="popup-edit-box">
+    <div id="se-edit-loading" class="popup-edit-loading">{{ T.admin_loading }}</div>
+    <button type="button" id="se-edit-close" class="popup-edit-close" aria-label="{{ T.admin_btn_close }}">&times;</button>
+    <iframe id="se-edit-frame" class="popup-edit-frame"></iframe>
+  </div>
+</div>
+
+<!-- Restock popup -->
+<div id="se-stock-overlay" class="popup-edit-overlay">
+  <form class="stock-modal" method="post" id="se-stock-form">
+    {% csrf_token %}
+    <button type="button" id="se-stock-close" class="popup-edit-close" aria-label="{{ T.admin_btn_close }}">&times;</button>
+    <h2 id="se-stock-name"></h2>
+    <p class="sm-now">{{ T.admin_current_stock }}: <strong id="se-stock-now">0</strong></p>
+    <input type="hidden" name="product_id" id="se-stock-id">
+    <label for="se-stock-qty">{{ T.admin_quantity_to_add }}</label>
+    <div class="sm-qty">
+      <button type="button" class="sm-step" data-step="-1" aria-label="-1">−</button>
+      <input type="number" name="quantity" id="se-stock-qty" min="1" value="10" required>
+      <button type="button" class="sm-step" data-step="1" aria-label="+1">+</button>
+    </div>
+    <label for="se-stock-cost" style="margin-top:14px">{{ T.admin_stock_unit_cost }}</label>
+    <div class="sm-qty"><input type="number" name="unit_cost" id="se-stock-cost" min="0" step="any" value="0"></div>
+    <p class="sm-after">{{ T.admin_selling_price }}: <strong id="se-stock-price">-</strong> <span id="se-stock-markup"></span></p>
+    <p class="sm-after">{{ T.admin_new_stock }}: <strong id="se-stock-after">0</strong></p>
+    <div class="sm-actions">
+      <button type="button" class="sm-cancel" id="se-stock-cancel">{{ T.admin_btn_cancel }}</button>
+      <button type="submit" class="sm-save">{{ T.admin_btn_save }}</button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var $ = function (id) { return document.getElementById(id); };
+    function open(o)  { o.classList.add('is-open'); }
+    function close(o) { o.classList.remove('is-open'); }
+
+    /* ---- edit popup: product name opens the change form in an iframe ---- */
+    var eo = $('se-edit-overlay'), ef = $('se-edit-frame'), el = $('se-edit-loading'), opened = false;
+    document.querySelectorAll('a[data-edit-popup]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            opened = true; el.classList.remove('hidden');
+            ef.src = a.href + (a.href.indexOf('?') === -1 ? '?' : '&') + '_popup=1';
+            open(eo);
+        });
+    });
+    ef.addEventListener('load', function () {
+        if (!opened) return;
+        var d; try { d = ef.contentDocument; } catch (err) { return; }
+        // Django's tiny "popup response" page = saved/deleted -> close + refresh the list.
+        if (d && d.getElementById('django-admin-popup-response-constants')) { window.location.reload(); return; }
+        el.classList.add('hidden');
+    });
+    function closeEdit() { close(eo); opened = false; setTimeout(function () { ef.src = 'about:blank'; }, 500); }
+    $('se-edit-close').addEventListener('click', closeEdit);
+    eo.addEventListener('click', function (e) { if (e.target === eo) closeEdit(); });
+
+    /* ---- restock popup: quantity + live "new stock" ---- */
+    var so = $('se-stock-overlay'), qty = $('se-stock-qty'), now = 0;
+    // Same rule as store/pricing.py: 30% (cheap) ... 20% (expensive) mark-up on the purchase price.
+    var MK = {{ markup_config_json|safe }};
+    function markup(cost) {
+        if (cost <= MK.low) return MK.max;
+        if (cost >= MK.high) return MK.min;
+        var t = (Math.log(cost) - Math.log(MK.low)) / (Math.log(MK.high) - Math.log(MK.low));
+        return MK.max - (MK.max - MK.min) * t;
+    }
+    function refreshPrice() {
+        var cost = parseFloat($('se-stock-cost').value) || 0, out = $('se-stock-price'), pct = $('se-stock-markup');
+        if (cost <= 0) { out.textContent = '-'; pct.textContent = ''; return; }
+        var m = markup(cost);
+        out.textContent = (Math.ceil(cost * (1 + m / 100) / MK.round) * MK.round).toLocaleString('en-US') + '₮';
+        pct.textContent = '(+' + m.toFixed(1) + '%)';
+    }
+    $('se-stock-cost').addEventListener('input', refreshPrice);
+    function refresh() { var q = parseInt(qty.value, 10); $('se-stock-after').textContent = now + (q > 0 ? q : 0); }
+    document.querySelectorAll('[data-restock]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            now = parseInt(btn.dataset.stock, 10) || 0;
+            $('se-stock-id').value = btn.dataset.id;
+            $('se-stock-name').textContent = btn.dataset.name;
+            $('se-stock-now').textContent = now;
+            $('se-stock-cost').value = btn.dataset.cost || 0;
+            qty.value = 10; refresh(); refreshPrice(); open(so);
+            setTimeout(function () { qty.focus(); qty.select(); }, 60);
+        });
+    });
+    document.querySelectorAll('.sm-step').forEach(function (b) {
+        b.addEventListener('click', function () {
+            qty.value = Math.max(1, (parseInt(qty.value, 10) || 0) + parseInt(b.dataset.step, 10)); refresh();
+        });
+    });
+    qty.addEventListener('input', refresh);
+    $('se-stock-close').addEventListener('click', function () { close(so); });
+    $('se-stock-cancel').addEventListener('click', function () { close(so); });
+    so.addEventListener('click', function (e) { if (e.target === so) close(so); });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { close(so); if (eo.classList.contains('is-open')) closeEdit(); }
+    });
+});
+</script>
+{% endblock %}

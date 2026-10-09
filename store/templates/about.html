@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block content %}
+<section class="py-5">
+    <div class="container d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+        <div class="about-box">
+            <h2>{{ T.about_title }}</h2>
+            <p>{{ T.about_text }}</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

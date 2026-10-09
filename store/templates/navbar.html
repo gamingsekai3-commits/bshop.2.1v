@@ -1,0 +1,1554 @@
+<!-- Navigation -->
+
+{% load i18n_extras %}
+
+<nav class="navbar navbar-expand-lg dadlaga-nav">
+    <div class="container px-4 px-lg-5">
+
+        <a class="navbar-brand" href="{% url 'home' %}">
+            {{ T.brand }}
+        </a>
+
+        <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+
+                <li class="nav-item">
+                    <a
+                        class="nav-link{% if request.resolver_match.url_name == 'home' %} active{% endif %}"
+                        {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}
+                        href="{% url 'home' %}"
+                    >
+                        {{ T.nav_home }}
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a
+                        class="nav-link{% if request.resolver_match.url_name == 'about' %} active{% endif %}"
+                        {% if request.resolver_match.url_name == 'about' %}aria-current="page"{% endif %}
+                        href="{% url 'about' %}"
+                    >
+                        {{ T.nav_about }}
+                    </a>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a
+                        class="nav-link dropdown-toggle"
+                        id="navbarDropdown"
+                        href="#"
+                        role="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                    >
+                        {{ T.nav_categories }}
+                    </a>
+
+                    <ul
+                        class="dropdown-menu"
+                        aria-labelledby="navbarDropdown"
+                    >
+                        <li>
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'home' %}"
+                            >
+                                {{ T.nav_all_products }}
+                            </a>
+                        </li>
+
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+
+                        {% for cat in categories %}
+                        <li>
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'category' cat.name %}"
+                            >
+                                {{ cat.name|category_name:LANG }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+
+                {% if not user.is_authenticated %}
+
+                <li class="nav-item">
+                    <a
+                        class="nav-link"
+                        href="{% url 'login' %}"
+                    >
+                        {{ T.nav_login }}
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a
+                        class="nav-link"
+                        href="{% url 'register' %}"
+                    >
+                        {{ T.nav_register }}
+                    </a>
+                </li>
+
+                {% endif %}
+
+
+                <!-- SEARCH -->
+
+                <li class="nav-item mx-2 search-wrapper">
+
+                    <form
+                        class="d-flex search-bar"
+                        role="search"
+                        method="get"
+                        action="{% url 'search' %}"
+                        autocomplete="off"
+                    >
+
+                        <input
+                            id="shop-search-input"
+                            class="form-control me-2"
+                            type="search"
+                            placeholder="{{ T.search_placeholder }}"
+                            aria-label="Search"
+                            name="searched"
+                        >
+
+                        <button
+                            class="btn"
+                            type="submit"
+                        >
+                            {{ T.search_button }}
+                        </button>
+
+                    </form>
+
+
+                    <!-- SEARCH HISTORY + RECOMMENDATIONS -->
+                    <!-- `search_history` and `search_recommendations` come from
+                         store.context_processors.search_dropdown, so they are
+                         available on every page. -->
+
+                    <div
+                        id="search-history"
+                        class="search-history"
+                    >
+
+                        <!-- Shown while the box is empty: recent searches + recommendations -->
+                        <div id="search-idle">
+
+                        <div class="search-history-header">
+
+                            <span>
+                                <i class="bi bi-clock-history me-1"></i>
+                                {{ T.search_recent }}
+                            </span>
+
+                            <button
+                                type="button"
+                                id="clear-search-history"
+                            >
+                                {{ T.search_clear }}
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            id="search-history-list"
+                            class="search-history-list"
+                            data-empty-text="{{ T.search_no_recent }}"
+                        >
+
+                            {% for item in search_history %}
+
+                            <div
+                                class="search-history-item"
+                                data-query="{{ item }}"
+                            >
+
+                                <div class="search-history-item-left">
+
+                                    <i class="bi bi-clock-history"></i>
+
+                                    <span class="search-history-query">
+                                        {{ item }}
+                                    </span>
+
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="search-history-delete"
+                                    data-query="{{ item }}"
+                                    title="{{ T.search_remove }}"
+                                >
+                                    &times;
+                                </button>
+
+                            </div>
+
+                            {% empty %}
+
+                            <div class="search-history-empty">
+                                {{ T.search_no_recent }}
+                            </div>
+
+                            {% endfor %}
+
+                        </div>
+
+
+                        {% if search_recommendations %}
+
+                        <div class="search-recommend">
+
+                            <div class="search-recommend-header">
+                                <i class="bi bi-stars me-1"></i>
+                                {{ T.search_recommended }}
+                            </div>
+
+                            {% for p in search_recommendations %}
+
+                            <a
+                                class="search-recommend-item"
+                                href="{% url 'product_detail' p.id %}"
+                            >
+
+                                {% if p.image %}
+                                <img
+                                    src="{{ p.image.url }}"
+                                    alt=""
+                                    class="search-recommend-img"
+                                >
+                                {% else %}
+                                <span class="search-recommend-img search-recommend-noimg">
+                                    <i class="bi bi-image"></i>
+                                </span>
+                                {% endif %}
+
+                                <span class="search-recommend-name">
+                                    {{ p.name }}
+                                </span>
+
+                                <span class="search-recommend-price">
+                                    {% if p.is_sale and p.sale_price > 0 %}
+                                        {{ p.sale_price|floatformat:0 }}₮
+                                    {% else %}
+                                        {{ p.price|floatformat:0 }}₮
+                                    {% endif %}
+                                </span>
+
+                            </a>
+
+                            {% endfor %}
+
+                        </div>
+
+                        {% endif %}
+
+                        </div>
+                        <!-- /search-idle -->
+
+
+                        <!-- Shown while typing: live suggestions (filled by the script below) -->
+                        <div
+                            id="search-live"
+                            class="search-live"
+                            hidden
+                            data-url="{% url 'search_suggest' %}"
+                            data-label-did-you-mean="{{ T.search_did_you_mean }}"
+                            data-label-category="{{ T.search_category }}"
+                        ></div>
+
+                    </div>
+
+                </li>
+
+            </ul>
+
+
+            <!-- RIGHT SIDE -->
+
+            <div class="d-flex align-items-center gap-2">
+
+
+                <!-- LANGUAGE -->
+
+                <div
+                    class="lang-switch"
+                    role="group"
+                    aria-label="Language switch"
+                >
+
+                    {% for code, label in AVAILABLE_LANGUAGES %}
+
+                    <a
+                        href="{% url 'set_language' code %}?next={{ request.get_full_path|urlencode }}"
+                        class="lang-btn{% if LANG == code %} active{% endif %}"
+                    >
+                        {{ label }}
+                    </a>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- CART -->
+
+                <a
+                    href="{% url 'cart' %}"
+                    class="btn btn-outline-dark"
+                >
+
+                    <i class="bi-cart-fill me-1"></i>
+
+                    {{ T.cart_label }}
+
+                    <span
+                        class="badge bg-dark text-white ms-1 rounded-pill"
+                        id="cart_quantity"
+                    >
+                        {{ cart|length }}
+                    </span>
+
+                </a>
+
+
+                <!-- PROFILE -->
+
+                {% if user.is_authenticated %}
+
+                <div class="dropdown profile-dropdown">
+
+                    <a
+                        class="btn btn-outline-dark dropdown-toggle profile-toggle"
+                        href="#"
+                        id="profileDropdown"
+                        role="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                    >
+
+                        <i class="bi bi-person-circle me-1"></i>
+
+                        <span class="profile-name">
+                            {{ user.username }}
+                        </span>
+
+                    </a>
+
+
+                    <ul
+                        class="dropdown-menu dropdown-menu-end profile-menu"
+                        aria-labelledby="profileDropdown"
+                    >
+
+                        <li>
+
+                            <button
+                                type="button"
+                                id="theme-toggle"
+                                onclick="toggleTheme()"
+                                class="dropdown-item profile-theme-toggle"
+                            >
+
+                                <span class="theme-toggle-icon">
+                                    <i class="bi bi-sun-fill"></i>
+                                </span>
+
+                                <span class="theme-toggle-text">
+                                    Light mode
+                                </span>
+
+                            </button>
+
+                        </li>
+
+
+                        <li>
+
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'my_orders' %}"
+                            >
+
+                                <i class="bi-bag-check-fill me-2"></i>
+
+                                {{ T.my_orders_title }}
+
+                            </a>
+
+                        </li>
+
+
+                        <li>
+
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'profile' %}"
+                            >
+
+                                <i class="bi-person-lines-fill me-2"></i>
+
+                                {{ T.nav_profile }}
+
+                            </a>
+
+                        </li>
+
+
+                        {% if user.is_staff %}
+
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+
+
+                        <li>
+
+                            <a
+                                class="dropdown-item"
+                                href="/admin/"
+                            >
+
+                                <i class="bi-speedometer2 me-2"></i>
+
+                                {{ T.nav_admin_panel }}
+
+                            </a>
+
+                        </li>
+
+
+                        <li>
+
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'employees' %}"
+                            >
+
+                                <i class="bi-people-fill me-2"></i>
+
+                                {{ T.employees_title }}
+
+                            </a>
+
+                        </li>
+
+
+                        <li>
+
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'add_employee' %}"
+                            >
+
+                                <i class="bi-person-plus-fill me-2"></i>
+
+                                {{ T.add_employee_btn }}
+
+                            </a>
+
+                        </li>
+
+                        {% endif %}
+
+
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+
+
+                        <li>
+
+                            <a
+                                class="dropdown-item profile-logout"
+                                href="{% url 'logout' %}"
+                            >
+
+                                <i class="bi-box-arrow-right me-2"></i>
+
+                                {{ T.nav_logout }}
+
+                            </a>
+
+                        </li>
+
+                    </ul>
+
+                </div>
+
+
+                {% else %}
+
+
+                <!-- THEME BUTTON -->
+
+                <button
+                    id="theme-toggle"
+                    onclick="toggleTheme()"
+                    class="btn-theme-toggle"
+                    aria-label="Toggle theme"
+                >
+
+                    <i class="bi bi-sun-fill"></i>
+
+                </button>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</nav>
+
+
+<style>
+
+.search-wrapper {
+    position: relative;
+}
+
+.search-bar {
+    position: relative;
+}
+
+.search-history {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    min-width: 320px;
+    background: #ffffff;
+    color: #222222;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    z-index: 9999;
+    display: none;
+}
+
+.search-history.show {
+    display: block;
+}
+
+.search-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.search-history-header span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#clear-search-history {
+    border: 0;
+    background: transparent;
+    color: #ac7e68;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 3px 5px;
+}
+
+#clear-search-history:hover {
+    text-decoration: underline;
+}
+
+.search-history-list {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.search-history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.search-history-item:hover {
+    background: rgba(172, 126, 104, 0.12);
+}
+
+.search-history-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.search-history-item-left i {
+    color: #888888;
+    flex-shrink: 0;
+}
+
+.search-history-query {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-history-delete {
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+    color: #999999;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 5px;
+}
+
+.search-history-delete:hover {
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.08);
+}
+
+.search-history-empty {
+    padding: 18px 14px;
+    text-align: center;
+    color: #888888;
+    font-size: 14px;
+}
+
+.search-recommend {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 6px 0 8px;
+}
+
+.search-recommend-header {
+    padding: 8px 14px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888888;
+}
+
+.search-recommend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px;
+    color: inherit;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.search-recommend-item:hover {
+    background: rgba(172, 126, 104, 0.12);
+    color: inherit;
+}
+
+.search-recommend-img {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.search-recommend-noimg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(128, 128, 128, 0.15);
+    color: #888888;
+}
+
+.search-recommend-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.search-recommend-price {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #888888;
+}
+
+[data-theme="dark"] .search-recommend {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .search-recommend-item:hover {
+    background: rgba(172, 126, 104, 0.18);
+}
+
+.search-live-group {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.search-live-group:first-child {
+    border-top: 0;
+}
+
+.search-live-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.search-live-item:hover,
+.search-live-item.kb-active,
+.search-history-item.kb-active,
+.search-recommend-item.kb-active {
+    background: rgba(172, 126, 104, 0.18);
+    color: inherit;
+}
+
+.search-live-item > i {
+    width: 20px;
+    text-align: center;
+    color: #888888;
+    flex-shrink: 0;
+}
+
+.search-live-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.search-live-meta {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #888888;
+}
+
+.search-live-item.is-out {
+    opacity: 0.55;
+}
+
+[data-theme="dark"] .search-live-group {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .search-history {
+    background: #1f1f1f;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .search-history-header {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .search-history-item:hover {
+    background: rgba(172, 126, 104, 0.18);
+}
+
+[data-theme="dark"] .search-history-item-left i {
+    color: #aaaaaa;
+}
+
+[data-theme="dark"] .search-history-delete {
+    color: #aaaaaa;
+}
+
+@media (max-width: 991.98px) {
+
+    .search-wrapper {
+        width: 100%;
+        margin: 10px 0 !important;
+    }
+
+    .search-bar {
+        width: 100%;
+    }
+
+    .search-bar input {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .search-history {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        width: 100%;
+        min-width: 0;
+    }
+
+}
+
+</style>
+
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const searchInput =
+        document.getElementById('shop-search-input');
+
+    const searchHistoryBox =
+        document.getElementById('search-history');
+
+    const searchHistoryList =
+        document.getElementById('search-history-list');
+
+    const clearHistoryButton =
+        document.getElementById('clear-search-history');
+
+
+    if (
+        !searchInput ||
+        !searchHistoryBox ||
+        !searchHistoryList ||
+        !clearHistoryButton
+    ) {
+        return;
+    }
+
+
+    function getCookie(name) {
+
+        let cookieValue = null;
+
+        if (document.cookie && document.cookie !== '') {
+
+            const cookies = document.cookie.split(';');
+
+            for (let i = 0; i < cookies.length; i++) {
+
+                const cookie = cookies[i].trim();
+
+                if (
+                    cookie.substring(
+                        0,
+                        name.length + 1
+                    ) === name + '='
+                ) {
+
+                    cookieValue =
+                        decodeURIComponent(
+                            cookie.substring(
+                                name.length + 1
+                            )
+                        );
+
+                    break;
+                }
+            }
+        }
+
+        return cookieValue;
+    }
+
+
+    const csrftoken = getCookie('csrftoken');
+
+
+    // "No recent searches" text comes from the template so it follows the
+    // visitor's language (data-empty-text on the list element).
+    function showEmptyHistory() {
+
+        const empty = document.createElement('div');
+
+        empty.className = 'search-history-empty';
+        empty.textContent =
+            searchHistoryList.getAttribute('data-empty-text') || '';
+
+        searchHistoryList.innerHTML = '';
+        searchHistoryList.appendChild(empty);
+
+    }
+
+
+    function showHistory() {
+
+        searchHistoryBox.classList.add('show');
+
+    }
+
+
+    function hideHistory() {
+
+        searchHistoryBox.classList.remove('show');
+
+    }
+
+
+    searchInput.addEventListener(
+        'focus',
+        function () {
+            showHistory();
+        }
+    );
+
+
+    searchInput.addEventListener(
+        'click',
+        function () {
+            showHistory();
+        }
+    );
+
+
+    searchHistoryList.addEventListener(
+        'click',
+        function (event) {
+
+            const deleteButton =
+                event.target.closest(
+                    '.search-history-delete'
+                );
+
+            if (deleteButton) {
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const query =
+                    deleteButton.getAttribute(
+                        'data-query'
+                    );
+
+                fetch(
+                    "{% url 'delete_search_history' %}",
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type':
+                                'application/x-www-form-urlencoded'
+                        },
+
+                        body:
+                            'query=' +
+                            encodeURIComponent(query)
+                    }
+                )
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+
+                    if (data.success) {
+
+                        const historyItem =
+                            deleteButton.closest(
+                                '.search-history-item'
+                            );
+
+                        if (historyItem) {
+                            historyItem.remove();
+                        }
+
+                        if (
+                            !searchHistoryList.querySelector(
+                                '.search-history-item'
+                            )
+                        ) {
+
+                            showEmptyHistory();
+
+                        }
+
+                    }
+
+                })
+                .catch(function (error) {
+
+                    console.error(
+                        'Search history delete error:',
+                        error
+                    );
+
+                });
+
+                return;
+            }
+
+
+            const historyItem =
+                event.target.closest(
+                    '.search-history-item'
+                );
+
+            if (historyItem) {
+
+                const query =
+                    historyItem.getAttribute(
+                        'data-query'
+                    );
+
+                if (query) {
+
+                    searchInput.value = query;
+
+                    searchInput
+                        .closest('form')
+                        .submit();
+
+                }
+
+            }
+
+        }
+    );
+
+
+    clearHistoryButton.addEventListener(
+        'click',
+        function (event) {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            fetch(
+                "{% url 'clear_search_history' %}",
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    }
+                }
+            )
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (data) {
+
+                if (data.success) {
+
+                    showEmptyHistory();
+
+                }
+
+            })
+            .catch(function (error) {
+
+                console.error(
+                    'Search history clear error:',
+                    error
+                );
+
+            });
+
+        }
+    );
+
+
+    // ------------------------------------------------------------------
+    // Live suggestions while typing
+    // ------------------------------------------------------------------
+    // Empty box  -> recent searches + recommended products (#search-idle)
+    // Typed text -> matching recent searches, categories and products, plus
+    //               a "did you mean" row for typos (#search-live).
+    // Suggestions come from GET /search/suggest/?q=... (JSON, read-only).
+
+    const idleBox = document.getElementById('search-idle');
+    const liveBox = document.getElementById('search-live');
+
+    if (idleBox && liveBox) {
+
+        const suggestUrl = liveBox.getAttribute('data-url');
+        const labelDidYouMean =
+            liveBox.getAttribute('data-label-did-you-mean') || '';
+        const labelCategory =
+            liveBox.getAttribute('data-label-category') || '';
+
+        const cache = new Map();
+        let debounceTimer = null;
+        let controller = null;
+
+
+        function setLiveMode(isLive) {
+
+            idleBox.hidden = isLive;
+            liveBox.hidden = !isLive;
+
+            clearActive();
+
+        }
+
+
+        function submitQuery(text) {
+
+            searchInput.value = text;
+            searchInput.closest('form').submit();
+
+        }
+
+
+        // Text with the part the visitor typed in bold.
+        function appendHighlighted(parent, text, typed) {
+
+            const at = typed
+                ? text.toLowerCase().indexOf(typed.toLowerCase())
+                : -1;
+
+            if (at < 0) {
+                parent.appendChild(document.createTextNode(text));
+                return;
+            }
+
+            parent.appendChild(
+                document.createTextNode(text.slice(0, at))
+            );
+
+            const bold = document.createElement('strong');
+            bold.textContent = text.slice(at, at + typed.length);
+            parent.appendChild(bold);
+
+            parent.appendChild(
+                document.createTextNode(text.slice(at + typed.length))
+            );
+
+        }
+
+
+        // One row. `tag` is 'a' for links (category / product) or 'div' for
+        // rows that run a search (data-query).
+        function buildRow(options) {
+
+            const row = document.createElement(options.tag || 'div');
+
+            row.className = 'search-live-item' +
+                (options.extraClass ? ' ' + options.extraClass : '');
+
+            if (options.href) {
+                row.setAttribute('href', options.href);
+            }
+
+            if (options.query) {
+                row.setAttribute('data-query', options.query);
+            }
+
+            if (options.image) {
+
+                const img = document.createElement('img');
+                img.className = 'search-recommend-img';
+                img.src = options.image;
+                img.alt = '';
+                row.appendChild(img);
+
+            } else {
+
+                const icon = document.createElement('i');
+                icon.className = 'bi ' + options.icon;
+                row.appendChild(icon);
+
+            }
+
+            const text = document.createElement('span');
+            text.className = 'search-live-text';
+
+            if (options.prefix) {
+                text.appendChild(
+                    document.createTextNode(options.prefix + ' ')
+                );
+            }
+
+            appendHighlighted(text, options.text, options.typed);
+            row.appendChild(text);
+
+            if (options.meta) {
+
+                const meta = document.createElement('span');
+                meta.className = 'search-live-meta';
+                meta.textContent = options.meta;
+                row.appendChild(meta);
+
+            }
+
+            return row;
+
+        }
+
+
+        function newGroup() {
+
+            const group = document.createElement('div');
+            group.className = 'search-live-group';
+            liveBox.appendChild(group);
+
+            return group;
+
+        }
+
+
+        function matchingHistory(typed) {
+
+            const lowered = typed.toLowerCase();
+            const found = [];
+
+            searchHistoryList
+                .querySelectorAll('.search-history-item')
+                .forEach(function (item) {
+
+                    const query = item.getAttribute('data-query') || '';
+
+                    if (
+                        query.toLowerCase().indexOf(lowered) !== -1 &&
+                        query.toLowerCase() !== lowered &&
+                        found.length < 3
+                    ) {
+                        found.push(query);
+                    }
+
+                });
+
+            return found;
+
+        }
+
+
+        function renderLive(typed, data) {
+
+            liveBox.innerHTML = '';
+
+            // 1. The text itself: Enter / click runs this search.
+            newGroup().appendChild(buildRow({
+                icon: 'bi-search',
+                text: typed,
+                query: typed
+            }));
+
+            // 2. "Did you mean ...?" for typos.
+            if (data && data.did_you_mean) {
+
+                newGroup().appendChild(buildRow({
+                    icon: 'bi-lightbulb',
+                    prefix: labelDidYouMean,
+                    text: data.did_you_mean,
+                    query: data.did_you_mean
+                }));
+
+            }
+
+            // 3. Matching recent searches.
+            const history = matchingHistory(typed);
+
+            if (history.length) {
+
+                const group = newGroup();
+
+                history.forEach(function (query) {
+                    group.appendChild(buildRow({
+                        icon: 'bi-clock-history',
+                        text: query,
+                        query: query,
+                        typed: typed
+                    }));
+                });
+
+            }
+
+            if (!data) {
+                return;
+            }
+
+            // The highlighted part is what matched: the typed text, or the
+            // corrected text when the query was spelled differently.
+            const shown = data.did_you_mean || typed;
+
+            // 4. Categories.
+            if (data.categories && data.categories.length) {
+
+                const group = newGroup();
+
+                data.categories.forEach(function (category) {
+                    group.appendChild(buildRow({
+                        tag: 'a',
+                        href: category.url,
+                        icon: 'bi-tag',
+                        prefix: labelCategory + ':',
+                        text: category.name,
+                        typed: shown
+                    }));
+                });
+
+            }
+
+            // 5. Products.
+            if (data.products && data.products.length) {
+
+                const group = newGroup();
+
+                data.products.forEach(function (product) {
+                    group.appendChild(buildRow({
+                        tag: 'a',
+                        href: product.url,
+                        image: product.image,
+                        icon: 'bi-image',
+                        text: product.name,
+                        typed: shown,
+                        meta: product.price.toLocaleString() + '\u20ae',
+                        extraClass: product.in_stock ? '' : 'is-out'
+                    }));
+                });
+
+            }
+
+        }
+
+
+        function fetchSuggestions(typed) {
+
+            if (cache.has(typed)) {
+                renderLive(typed, cache.get(typed));
+                return;
+            }
+
+            if (controller) {
+                controller.abort();
+            }
+
+            controller = new AbortController();
+
+            fetch(
+                suggestUrl + '?q=' + encodeURIComponent(typed),
+                {
+                    signal: controller.signal,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }
+            )
+            .then(function (response) {
+                return response.ok ? response.json() : null;
+            })
+            .then(function (data) {
+
+                if (!data) {
+                    return;
+                }
+
+                cache.set(typed, data);
+
+                // Ignore answers for something the visitor has already
+                // typed past.
+                if (searchInput.value.trim() === typed) {
+                    renderLive(typed, data);
+                }
+
+            })
+            .catch(function () {
+                // Aborted or offline: the local rows stay on screen.
+            });
+
+        }
+
+
+        searchInput.addEventListener('input', function () {
+
+            const typed = searchInput.value.trim();
+
+            clearTimeout(debounceTimer);
+
+            if (controller) {
+                controller.abort();
+            }
+
+            if (!typed) {
+                setLiveMode(false);
+                return;
+            }
+
+            showHistory();
+            setLiveMode(true);
+
+            // Instant local rows now, server suggestions a moment later.
+            renderLive(typed, cache.get(typed) || null);
+
+            debounceTimer = setTimeout(function () {
+                fetchSuggestions(typed);
+            }, 200);
+
+        });
+
+
+        liveBox.addEventListener('click', function (event) {
+
+            const row = event.target.closest('.search-live-item[data-query]');
+
+            if (row) {
+                submitQuery(row.getAttribute('data-query'));
+            }
+
+        });
+
+    }
+
+
+    // ------------------------------------------------------------------
+    // Keyboard: up / down to move through the rows, Enter to open the
+    // highlighted one, Esc to close.
+    // ------------------------------------------------------------------
+
+    const rowSelector =
+        '.search-live-item, .search-history-item, .search-recommend-item';
+
+    function visibleRows() {
+
+        return Array.prototype.filter.call(
+            searchHistoryBox.querySelectorAll(rowSelector),
+            function (row) {
+                return !row.closest('[hidden]');
+            }
+        );
+
+    }
+
+
+    function clearActive() {
+
+        searchHistoryBox
+            .querySelectorAll('.kb-active')
+            .forEach(function (row) {
+                row.classList.remove('kb-active');
+            });
+
+    }
+
+
+    searchInput.addEventListener('keydown', function (event) {
+
+        if (event.key === 'Escape') {
+            hideHistory();
+            clearActive();
+            return;
+        }
+
+        if (
+            event.key !== 'ArrowDown' &&
+            event.key !== 'ArrowUp' &&
+            event.key !== 'Enter'
+        ) {
+            return;
+        }
+
+        if (!searchHistoryBox.classList.contains('show')) {
+
+            if (event.key === 'ArrowDown') {
+                showHistory();
+            }
+
+            return;
+
+        }
+
+        const rows = visibleRows();
+
+        let current = -1;
+
+        rows.forEach(function (row, index) {
+            if (row.classList.contains('kb-active')) {
+                current = index;
+            }
+        });
+
+        if (event.key === 'Enter') {
+
+            if (current < 0) {
+                return;     // nothing highlighted: normal form submit
+            }
+
+            event.preventDefault();
+
+            const row = rows[current];
+
+            if (row.tagName === 'A') {
+                window.location.href = row.getAttribute('href');
+            } else if (row.getAttribute('data-query')) {
+                searchInput.value = row.getAttribute('data-query');
+                searchInput.closest('form').submit();
+            }
+
+            return;
+
+        }
+
+        if (!rows.length) {
+            return;
+        }
+
+        event.preventDefault();
+
+        let next;
+
+        if (event.key === 'ArrowDown') {
+            next = current + 1 >= rows.length ? 0 : current + 1;
+        } else {
+            next = current <= 0 ? rows.length - 1 : current - 1;
+        }
+
+        clearActive();
+        rows[next].classList.add('kb-active');
+
+        if (rows[next].scrollIntoView) {
+            rows[next].scrollIntoView({ block: 'nearest' });
+        }
+
+    });
+
+
+    document.addEventListener(
+        'click',
+        function (event) {
+
+            if (
+                !searchHistoryBox.contains(event.target) &&
+                !searchInput.contains(event.target)
+            ) {
+
+                hideHistory();
+
+            }
+
+        }
+    );
+
+});
+
+</script>

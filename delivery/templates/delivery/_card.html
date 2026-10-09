@@ -1,0 +1,13 @@
+{% load humanize %}
+<div class="card delivery-card">
+    <div class="row between">
+        <strong>#{{ d.pk }}</strong>
+        <span class="badge st-{{ d.status }}">{{ d.get_status_display|truncatechars:14 }}</span>
+    </div>
+    <p class="muted">Захиалга #{{ d.order_id }} · {{ d.order.name }}</p>
+    <p>{{ d.delivery_address|truncatechars:80 }}</p>
+    <div class="row between">
+        <span class="price">₮{{ d.order.get_total_price|floatformat:0|intcomma }}</span>
+        <a class="btn btn-small" href="{% url 'delivery:detail' d.pk %}">ДЭЛГЭРЭНГҮЙ</a>
+    </div>
+</div>

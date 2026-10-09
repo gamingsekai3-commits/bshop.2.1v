@@ -1,0 +1,36 @@
+<div class="rd">
+  <h2 class="rd-title">{{ T.rd_product_title }}</h2>
+  <div class="rd-head">
+    {% if image_url %}<img class="rd-img" src="{{ image_url }}" alt="">{% endif %}
+    <dl class="rd-dl">
+      {% for label, value in info %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+    </dl>
+  </div>
+  {% if product.description %}<p class="rd-desc">{{ product.description }}</p>{% endif %}
+
+  <h3 class="rd-sub">{{ T.rd_sales_period }} <small>({{ period }})</small></h3>
+  <div class="rd-cards">
+    <div><span>{{ T.admin_report_units_sold }}</span><strong>{{ units }}</strong></div>
+    <div><span>{{ T.admin_revenue }}</span><strong>{{ revenue }} ₮</strong></div>
+  </div>
+  <div class="rd-scroll">
+    <table class="rd-table">
+      <thead><tr>
+        <th>{{ T.rd_order_no }}</th><th>{{ T.admin_report_date }}</th><th>{{ T.rd_customer }}</th>
+        <th>{{ T.admin_col_status }}</th><th class="num">{{ T.rd_qty }}</th>
+        <th class="num">{{ T.rd_unit_price }}</th><th class="num">{{ T.rd_amount }}</th>
+      </tr></thead>
+      <tbody>
+        {% for s in sales %}
+        <tr>
+          <td>#{{ s.order_id }}</td><td>{{ s.date }}</td><td>{{ s.customer }}</td><td>{{ s.status }}</td>
+          <td class="num">{{ s.qty }}</td><td class="num">{{ s.price }}</td><td class="num">{{ s.amount }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">{{ T.rd_no_sales }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if truncated %}<p class="rd-empty">{{ T.rd_latest }}</p>{% endif %}
+</div>

@@ -1,0 +1,42 @@
+<style>
+  .report-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 20px; }
+  .report-filter label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 700;
+                         letter-spacing: .05em; text-transform: uppercase; color: var(--body-quiet-color); }
+  .dp { position: relative; }
+  .dp input { padding: 6px 10px; min-width: 150px; cursor: pointer; }
+  .dp-pop { position: absolute; top: 100%; left: 0; z-index: 60; width: 252px; padding: 10px;
+            background: var(--body-bg); color: var(--body-fg); border: 1px solid var(--hairline-color);
+            border-radius: var(--admin-radius, 8px); box-shadow: 0 8px 24px rgba(0,0,0,.18);
+            opacity: 0; visibility: hidden; transform: translateY(-6px);
+            transition: opacity .5s ease, transform .5s ease, visibility 0s linear .5s; }
+  .dp:hover .dp-pop, .dp.open .dp-pop { opacity: 1; visibility: visible; transform: none;
+            transition: opacity .5s ease, transform .5s ease, visibility 0s; }
+  .dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: 700; }
+  .dp-head button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 18px;
+                    line-height: 1; padding: 2px 8px; border-radius: 4px; }
+  .dp-head button:hover { background: var(--darkened-bg); }
+  .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+  .dp-grid .dow { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--body-quiet-color); padding: 4px 0; }
+  .dp-grid button { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 6px 0;
+                    border-radius: 4px; font-size: 13px; }
+  .dp-grid button:hover { background: var(--darkened-bg); }
+  .dp-grid button.today { outline: 1px solid var(--hairline-color); }
+  .dp-grid button.sel { background: var(--primary, #417690); color: #fff; }
+
+  /* Sort arrows in a table header: ▲ above ▼, both always visible. The one for the
+     active direction lights up (th[data-dir] is "asc", "desc" or ""). Shared by every report table. */
+  th .rs-head { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+  th .rs-arrows { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 0; }
+  th .rs-dir { display: block; padding: 2px 4px; line-height: 0; color: inherit; text-decoration: none; background: none;
+               opacity: .3; cursor: pointer;
+               transition: opacity .12s ease, color .12s ease, filter .12s ease, transform .12s ease; }
+  th .rs-dir svg { display: block; width: 10px; height: 6px; fill: currentColor; }
+  th .rs-dir:hover { opacity: .75; transform: scale(1.15); }
+  th .rs-dir:focus-visible { opacity: 1; outline: 1px solid var(--primary); outline-offset: 1px; }
+  th[data-dir="asc"] .rs-up, th[data-dir="desc"] .rs-down { opacity: 1; color: var(--rs-lit, var(--body-fg)); }
+  html[data-theme="dark"] th[data-dir="asc"] .rs-up,
+  html[data-theme="dark"] th[data-dir="desc"] .rs-down { color: #fff; filter: drop-shadow(0 0 3px rgba(255,255,255,.65)); }
+  html[data-theme="light"] th[data-dir="asc"] .rs-up,
+  html[data-theme="light"] th[data-dir="desc"] .rs-down { color: var(--primary); filter: drop-shadow(0 0 2px rgba(201,136,10,.5)); }
+  @media (prefers-reduced-motion: reduce) { th .rs-dir { transition: none; } th .rs-dir:hover { transform: none; } }
+</style>

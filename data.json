@@ -1,0 +1,180 @@
+[
+{
+  "model": "store.category",
+  "pk": 1,
+  "fields": {
+    "name": "Электрон бараа"
+  }
+},
+{
+  "model": "store.category",
+  "pk": 2,
+  "fields": {
+    "name": "Хувцас"
+  }
+},
+{
+  "model": "store.category",
+  "pk": 3,
+  "fields": {
+    "name": "Хүнс"
+  }
+},
+{
+  "model": "store.customer",
+  "pk": 1,
+  "fields": {
+    "first_name": "Sora",
+    "last_name": "Mj",
+    "email": "gamingsekai3@gmail.com",
+    "password": "Gintama-412-"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 1,
+  "fields": {
+    "name": "Будаа",
+    "price": "5000.00",
+    "category": 3,
+    "description": "",
+    "image": "uploads/product/download.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 2,
+  "fields": {
+    "name": "LG 88800",
+    "price": "3000000.00",
+    "category": 1,
+    "description": "",
+    "image": "uploads/product/images.jfif",
+    "is_sale": false,
+    "sale_price": "2500000.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 3,
+  "fields": {
+    "name": "Мах",
+    "price": "90000.00",
+    "category": 3,
+    "description": "urgelj bid tanitai hamt",
+    "image": "uploads/product/download_1.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 4,
+  "fields": {
+    "name": "Гурил",
+    "price": "29500.00",
+    "category": 1,
+    "description": "eruul huns tanitai hamt",
+    "image": "uploads/product/images_1.jfif",
+    "is_sale": false,
+    "sale_price": "26500.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 5,
+  "fields": {
+    "name": "Талх",
+    "price": "3000.00",
+    "category": 3,
+    "description": "taniig targaluun in bid urgelj tanitai hmt",
+    "image": "uploads/product/images_2.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 6,
+  "fields": {
+    "name": "Хэрчсэн гурил",
+    "price": "4000.00",
+    "category": 3,
+    "description": "ajliig urgelj hylbarchlna",
+    "image": "uploads/product/images_3.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 7,
+  "fields": {
+    "name": "smart refrigerotar",
+    "price": "3500000.00",
+    "category": 1,
+    "description": "eruul huns urglj negt",
+    "image": "uploads/product/images_4.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 8,
+  "fields": {
+    "name": "Samsung Ecobuble",
+    "price": "2300000.00",
+    "category": 1,
+    "description": "sain ugaana",
+    "image": "uploads/product/images_5.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 9,
+  "fields": {
+    "name": "R4JUZ8DCI Scooter",
+    "price": "350000.00",
+    "category": 1,
+    "description": "haana urgelj hurgen bat buh chanartai",
+    "image": "uploads/product/download_2.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "store.product",
+  "pk": 10,
+  "fields": {
+    "name": "Verge TS pro motorrcycle",
+    "price": "15000000.00",
+    "category": 1,
+    "description": "hymd une chanartai songolt",
+    "image": "uploads/product/download_3.jfif",
+    "is_sale": false,
+    "sale_price": "0.00"
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$ElwDSkjGYvd05PmScKC4rl$Euw0kfqOUF1D6VOqES+8eNGR7JwMiRj6q28PxE1FQ1E=",
+    "last_login": "2026-09-04T07:28:05.381Z",
+    "is_superuser": true,
+    "username": "Baldan",
+    "first_name": "",
+    "last_name": "",
+    "email": "gamingsekai3@gmail.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-09-04T06:56:51.364Z",
+    "groups": [],
+    "user_permissions": []
+  }
+}
+]

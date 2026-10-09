@@ -1,0 +1,18 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Өнөөдрийн хүргэлт</h2>
+<div class="stats">
+    <div class="stat"><b>{{ stats.total }}</b><span>Нийт</span></div>
+    <div class="stat"><b>{{ stats.waiting }}</b><span>Хүлээгдэж буй</span></div>
+    <div class="stat"><b>{{ stats.moving }}</b><span>Явж буй</span></div>
+    <div class="stat"><b>{{ stats.done }}</b><span>Дууссан</span></div>
+</div>
+
+<h2>Миний хүргэлтүүд</h2>
+{% for d in deliveries %}
+    {% include 'delivery/_card.html' %}
+{% empty %}
+    <div class="card muted">Одоогоор танд оноогдсон хүргэлт алга.</div>
+{% endfor %}
+{% endblock %}

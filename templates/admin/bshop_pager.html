@@ -1,0 +1,48 @@
+{% if show %}
+<nav class="bshop-pager" aria-label="{{ labels.per_page }}">
+  {% if multi_page %}
+  <ul class="bp-pages">
+    <li>
+      {% if prev_url %}
+      <a class="bp-btn bp-arrow" href="{{ prev_url }}" aria-label="{{ labels.prev }}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </a>
+      {% else %}
+      <span class="bp-btn bp-arrow is-disabled" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </span>
+      {% endif %}
+    </li>
+    {% for page in pages %}
+    <li>
+      {% if page.kind == 'current' %}<span class="bp-btn is-current" aria-current="page">{{ page.label }}</span>
+      {% elif page.kind == 'gap' %}<span class="bp-btn bp-gap">…</span>
+      {% else %}<a class="bp-btn" href="{{ page.url }}">{{ page.label }}</a>{% endif %}
+    </li>
+    {% endfor %}
+    <li>
+      {% if next_url %}
+      <a class="bp-btn bp-arrow" href="{{ next_url }}" aria-label="{{ labels.next }}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      {% else %}
+      <span class="bp-btn bp-arrow is-disabled" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </span>
+      {% endif %}
+    </li>
+  </ul>
+  {% endif %}
+
+  <div class="bp-footer">
+    <span class="bp-results">{{ text }}</span>
+    {% if sizes %}
+    <label class="bp-size">
+      <select aria-label="{{ labels.per_page }}" onchange="window.location.href=this.value">
+        {% for s in sizes %}<option value="{{ s.url }}"{% if s.selected %} selected{% endif %}>{{ s.value }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

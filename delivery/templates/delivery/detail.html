@@ -1,0 +1,58 @@
+{% extends 'delivery/base.html' %}
+{% load humanize %}
+{% block title %}Хүргэлт #{{ delivery.pk }}{% endblock %}
+{% block content %}
+<a class="back" href="{% url 'delivery:deliveries' %}">← Буцах</a>
+<h2>Хүргэлт #{{ delivery.pk }}</h2>
+
+<div class="card">
+    <dl>
+        <dt>Төлөв</dt><dd><span class="badge st-{{ delivery.status }}">{{ delivery.get_status_display }}</span></dd>
+        <dt>Харилцагч</dt><dd>{{ delivery.order.name }}</dd>
+        <dt>Утас</dt><dd><a href="tel:{{ delivery.phone }}">{{ delivery.phone }}</a></dd>
+        <dt>Хүргэх хаяг</dt><dd>{{ delivery.delivery_address|linebreaksbr }}</dd>
+        <dt>Захиалга</dt><dd>#{{ delivery.order_id }} · {{ items|length }} бүтээгдэхүүн</dd>
+        <dt>Нийт дүн</dt><dd class="price">₮{{ delivery.order.get_total_price|floatformat:0|intcomma }}</dd>
+        {% if delivery.failure_reason %}<dt>Шалтгаан</dt><dd>{{ delivery.get_failure_reason_display }}</dd>{% endif %}
+        {% if delivery.note %}<dt>Тайлбар</dt><dd>{{ delivery.note|linebreaksbr }}</dd>{% endif %}
+    </dl>
+    <ul class="items">
+        {% for item in items %}
+            <li>{{ item.product.name|default:item.name }}{% if item.options %} ({{ item.options }}){% endif %} × {{ item.quantity }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if delivery.status == 'assigned' %}
+    <form method="post" action="{% url 'delivery:action' delivery.pk 'accept' %}">{% csrf_token %}
+        <button class="btn btn-primary btn-block">ХҮЛЭЭН АВАХ</button></form>
+{% elif delivery.status == 'accepted' %}
+    <form method="post" action="{% url 'delivery:action' delivery.pk 'pickup' %}">{% csrf_token %}
+        <button class="btn btn-primary btn-block">БАРААГ АВАХ</button></form>
+{% elif delivery.status == 'picked_up' %}
+    <form method="post" action="{% url 'delivery:action' delivery.pk 'depart' %}">{% csrf_token %}
+        <button class="btn btn-primary btn-block">ХҮРГЭЛТЭНД ГАРАХ</button></form>
+{% elif delivery.status == 'on_the_way' %}
+    <p class="muted">Map integration дараагийн шатанд нэмэгдэнэ.</p>
+    <form method="post" action="{% url 'delivery:action' delivery.pk 'deliver' %}"
+          onsubmit="return confirm('Хүргэлт амжилттай хүрсэн үү?');">{% csrf_token %}
+        <button class="btn btn-success btn-block">ХҮРГЭЛТ ДУУСГАХ</button></form>
+
+    <details class="card fail">
+        <summary>ХҮРГЭЛТ АМЖИЛТГҮЙ</summary>
+        <form method="post" action="{% url 'delivery:action' delivery.pk 'fail' %}"
+              onsubmit="return confirm('Хүргэлтийг амжилтгүй гэж тэмдэглэх үү?');">{% csrf_token %}
+            <label>{{ fail_form.reason.label }}</label>{{ fail_form.reason }}
+            <label>{{ fail_form.note.label }}</label>{{ fail_form.note }}
+            <button class="btn btn-danger btn-block">АМЖИЛТГҮЙ ГЭЖ ТЭМДЭГЛЭХ</button>
+        </form>
+    </details>
+{% endif %}
+
+<h3>Түүх</h3>
+<ul class="history">
+    {% for h in history %}
+        <li><span class="muted">{{ h.created_at|date:"m-d H:i" }}</span> {{ h.to_status }}{% if h.note %} — {{ h.note }}{% endif %}</li>
+    {% endfor %}
+</ul>
+{% endblock %}

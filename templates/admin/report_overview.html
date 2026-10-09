@@ -1,0 +1,78 @@
+{% extends "admin/base_site.html" %}
+{% load i18n humanize %}
+
+{% block title %}{{ report_title }} | {{ T.admin_site_title }}{% endblock %}
+{% block content_title %}<h1>{{ report_title }}</h1>{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; {{ T.admin_app_reports }} &rsaquo; {{ report_title }}
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+{% include "admin/_report_filter_style.html" %}
+<style>
+  .ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .ov-stat { padding: 16px 20px; background: var(--darkened-bg); border: 1px solid var(--hairline-color);
+             border-radius: var(--admin-radius, 8px); border-left: 4px solid var(--c, var(--primary)); }
+  .ov-stat span { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+                  text-transform: uppercase; color: var(--body-quiet-color); }
+  .ov-stat strong { font-size: 24px; }
+  .ov-stat--income { --c: #4caf7d; } .ov-stat--expense { --c: #e0614b; } .ov-stat--profit { --c: #e8c84a; }
+  .ov-neg { color: #e0614b; }
+  .ov-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .ov-card { padding: 16px 20px; background: var(--darkened-bg); border: 1px solid var(--hairline-color);
+             border-radius: var(--admin-radius, 8px); }
+  .ov-card__title { margin: 0 0 12px; font-size: 15px; background: none !important; color: var(--body-fg) !important; padding: 0 !important; }
+  .ov-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+  .ov-pie svg { flex: 0 0 auto; max-width: 100%; }
+  .ov-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 180px; }
+  .ov-legend li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .ov-legend i { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+  .ov-legend span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-legend em { color: var(--body-quiet-color); font-style: normal; width: 48px; text-align: right; }
+  .ov-empty, .ov-note { color: var(--body-quiet-color); font-size: 12px; }
+  .ov-table { width: 100%; } .ov-table .num { text-align: right; white-space: nowrap; }
+  .ov-table-wrap { overflow-x: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "admin/_report_filter.html" %}
+
+<div class="ov-stats">
+  <div class="ov-stat ov-stat--income"><span>{{ T.admin_revenue }}</span><strong>{{ income|intcomma }} &#8366;</strong></div>
+  <div class="ov-stat ov-stat--expense"><span>{{ T.admin_overview_expense }}</span><strong>{{ expense|intcomma }} &#8366;</strong></div>
+  <div class="ov-stat ov-stat--profit"><span>{{ T.admin_overview_profit }}</span><strong{% if profit < 0 %} class="ov-neg"{% endif %}>{{ profit|intcomma }} &#8366;</strong></div>
+</div>
+
+<div class="ov-charts">
+  {% include "admin/_pie_chart.html" with pie=pie_income title=T.admin_overview_income_by_cat %}
+  {% include "admin/_pie_chart.html" with pie=pie_expense title=T.admin_overview_expense_by_cat %}
+  {% include "admin/_pie_chart.html" with pie=pie_split title=T.admin_overview_split %}
+</div>
+
+{% if table %}
+<div class="ov-table-wrap">
+  <table class="ov-table">
+    <thead><tr>
+      <th data-filter="none">{{ T.admin_col_category }}</th>
+      <th class="num" data-filter="none">{{ T.admin_revenue }}</th>
+      <th class="num" data-filter="none">{{ T.admin_overview_expense }}</th>
+      <th class="num" data-filter="none">{{ T.admin_overview_profit }}</th>
+    </tr></thead>
+    <tbody>
+    {% for r in table %}
+      <tr><td>{{ r.name }}</td><td class="num">{{ r.income|intcomma }}</td><td class="num">{{ r.expense|intcomma }}</td>
+          <td class="num{% if r.profit < 0 %} ov-neg{% endif %}">{{ r.profit|intcomma }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+<p class="ov-note">{{ T.admin_overview_note }}</p>
+{% include "admin/_report_filter_script.html" %}
+{% endblock %}

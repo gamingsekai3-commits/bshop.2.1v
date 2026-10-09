@@ -1,0 +1,30 @@
+{% load humanize %}{# One bar chart card, used for both the daily and the monthly revenue chart so they are always the same size. Needs: chart (from revenue_by_day / revenue_by_month) and title. #}
+<div class="dashboard-card bar-chart">
+  <div class="dashboard-card__head">
+    <span>{{ title }}</span>
+    <span class="bar-chart__total">{{ T.admin_total }}: {{ chart.total|intcomma }} &#8366;</span>
+  </div>
+  <div class="dashboard-card__body">
+    <div class="bar-chart__scroll">
+      <svg class="bar-chart__svg" viewBox="0 0 {{ chart.width }} {{ chart.height }}" width="{{ chart.min_width }}" role="group" aria-label="{{ title }}">
+        {# horizontal grid lines with their values on the left #}
+        {% for g in chart.grid %}
+          <line class="bar-chart__grid" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ g.y }}" y2="{{ g.y }}"/>
+          <text class="bar-chart__axis" x="38" y="{{ g.text_y }}" text-anchor="end">{{ g.label }}</text>
+        {% endfor %}
+
+        {# one column per period; hovering it shows the period, revenue and orders #}
+        {% for b in chart.bars %}
+          <g class="bar-chart__col{% if b.is_current %} bar-chart__col--today{% endif %}">
+            <title>{{ b.name }} &mdash; {{ T.admin_revenue }}: {{ b.revenue|intcomma }} &middot; {{ T.admin_orders }}: {{ b.orders }}</title>
+            <rect class="bar-chart__hit" x="{{ b.slot_x }}" y="{{ chart.top }}" width="{{ b.slot_w }}" height="{{ chart.plot_h }}"/>
+            <rect class="bar-chart__bar" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="4"/>
+            {% if b.revenue %}<text class="bar-chart__value" x="{{ b.cx }}" y="{{ b.value_y }}" text-anchor="middle">{{ b.value_label }}</text>{% endif %}
+            <text class="bar-chart__axis" x="{{ b.cx }}" y="236" text-anchor="middle">{{ b.label }}</text>
+            {% if b.year %}<text class="bar-chart__axis bar-chart__year" x="{{ b.cx }}" y="254" text-anchor="middle">{{ b.year }}</text>{% endif %}
+          </g>
+        {% endfor %}
+      </svg>
+    </div>
+  </div>
+</div>

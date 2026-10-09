@@ -1,0 +1,1573 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ T.admin_site_title }}{% endblock %}
+
+{% block extrahead %}
+
+<script>
+    if (!localStorage.getItem('theme')) {
+        localStorage.setItem('theme', 'light');
+    }
+
+    localStorage.setItem(
+        'django.admin.navSidebarIsOpen',
+        'false'
+    );
+</script>
+
+{{ block.super }}
+
+<script
+    src="{% static 'js/nav-sidebar-toggle.js' %}"
+    defer
+></script>
+
+<script
+    src="{% static 'admin/js/nav-app-collapse.js' %}"
+    defer
+></script>
+
+<script>
+window.BSHOP_LANG = "{{ LANG|default:'mn'|escapejs }}";
+window.BSHOP_I18N = {
+    add: "{{ T.admin_btn_add|escapejs }}",
+    back: "{{ T.admin_btn_back|escapejs }}",
+    formNotFound: "{{ T.admin_js_form_not_found|escapejs }}",
+    formError: "{{ T.admin_js_form_error|escapejs }}"
+};
+</script>
+
+<script
+    src="{% static 'admin/js/table-filter.js' %}"
+    defer
+></script>
+
+<script
+    src="{% static 'admin/js/detail-popup.js' %}"
+    defer
+></script>
+
+{% endblock %}
+
+{% block extrastyle %}
+
+{{ block.super }}
+
+<link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+>
+
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+>
+
+{# Non-blocking: page paints with fallback fonts, Google Fonts swaps in when loaded #}
+<link
+    href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"
+    rel="stylesheet"
+    media="print"
+    onload="this.media='all'"
+>
+<noscript>
+<link
+    href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"
+    rel="stylesheet"
+>
+</noscript>
+
+<link
+    rel="stylesheet"
+    href="{% static 'admin/css/custom_theme.css' %}"
+>
+
+<link
+    rel="stylesheet"
+    href="{% static 'admin/css/page-loader.css' %}"
+>
+
+<link
+    rel="stylesheet"
+    href="{% static 'admin/css/detail-popup.css' %}"
+>
+
+{% endblock %}
+
+{% block branding %}
+
+<div id="site-name">
+
+<a href="{% url 'admin:index' %}">
+
+    <span class="bshop-brand-mark">
+        Bshop Admin
+    </span>
+
+</a>
+
+</div>
+
+{% endblock %}
+
+{% comment %}
+Profile dropdown - built to look like the storefront navbar's profile menu
+(store/templates/navbar.html): outlined button with person-circle icon +
+username + caret, and a menu of icon rows. The icons are the same Bootstrap
+Icons the storefront uses, inlined so the admin needs no extra downloads.
+The "Welcome, X." greeting stays in the header next to the button.
+The theme button keeps Django's `theme-toggle` class on purpose:
+admin/js/theme.js finds buttons by that class and wires up the switching.
+{% endcomment %}
+{% block usertools %}
+{% if has_permission %}
+
+<div class="admin-user-area">
+
+<span class="admin-welcome">
+    {% translate 'Welcome,' %}
+    <strong>{% firstof user.get_short_name user.get_username %}</strong>.
+</span>
+
+<div class="admin-profile" id="admin-profile">
+
+    <button
+        type="button"
+        class="admin-profile-toggle"
+        id="admin-profile-toggle"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="admin-profile-menu"
+    >
+        <svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/> <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"/></svg>
+        <span class="admin-profile-name">{{ user.get_username }}</span>
+    </button>
+
+    <ul class="admin-profile-menu" id="admin-profile-menu">
+
+        <li>
+            <button type="button" class="theme-toggle admin-profile-item">
+                <span class="admin-profile-icon admin-when-dark"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/></svg></span>
+                <span class="admin-profile-icon admin-when-light"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg></span>
+                <span class="admin-when-dark">{{ T.admin_theme_light_mode }}</span>
+                <span class="admin-when-light">{{ T.admin_theme_dark_mode }}</span>
+            </button>
+        </li>
+
+        <li>
+            <a class="admin-profile-item" href="{% url 'profile' %}">
+                <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zM11 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zm.5 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1h-4zm2 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2zm0 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2z"/></svg></span>
+                {{ T.nav_profile }}
+            </a>
+        </li>
+
+        <li class="admin-profile-divider" role="separator"></li>
+
+        {% if site_url %}
+        <li>
+            <a class="admin-profile-item" href="{{ site_url }}">
+                <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35l2.609 3.044A1.5 1.5 0 0 1 16 5.37v.255a2.375 2.375 0 0 1-4.25 1.458A2.371 2.371 0 0 1 9.875 8 2.37 2.37 0 0 1 8 7.083 2.37 2.37 0 0 1 6.125 8a2.37 2.37 0 0 1-1.875-.917A2.375 2.375 0 0 1 0 5.625V5.37a1.5 1.5 0 0 1 .361-.976l2.61-3.045zm1.78 4.275a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 1 0 2.75 0V5.37a.5.5 0 0 0-.12-.325L12.27 2H3.73L1.12 5.045A.5.5 0 0 0 1 5.37v.255a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0zM1.5 8.5A.5.5 0 0 1 2 9v6h1v-5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v5h6V9a.5.5 0 0 1 1 0v6h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1V9a.5.5 0 0 1 .5-.5zM4 15h3v-5H4v5zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3zm3 0h-2v3h2v-3z"/></svg></span>
+                {% translate 'View site' %}
+            </a>
+        </li>
+        {% endif %}
+
+        {% if user.has_usable_password %}
+        <li>
+            <a class="admin-profile-item" href="{% url 'admin:password_change' %}">
+                <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 11.5a3.5 3.5 0 1 1 3.163-5H14L15.5 8 14 9.5l-1-1-1 1-1-1-1 1-1-1-1 1H6.663a3.5 3.5 0 0 1-3.163 2zM2.5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span>
+                {% translate 'Change password' %}
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="admin-profile-divider" role="separator"></li>
+
+        <li>
+            <form method="post" action="{% url 'admin:logout' %}" class="admin-profile-logout-form">
+                {% csrf_token %}
+                <button type="submit" class="admin-profile-item admin-profile-logout">
+                    <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/> <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/></svg></span>
+                    {{ T.nav_logout }}
+                </button>
+            </form>
+        </li>
+
+    </ul>
+</div>
+
+</div>
+
+<script>
+(function () {
+    var wrap = document.getElementById('admin-profile');
+    var toggle = document.getElementById('admin-profile-toggle');
+    if (!wrap || !toggle) { return; }
+
+    function setOpen(open) {
+        wrap.classList.toggle('open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    toggle.addEventListener('click', function () {
+        setOpen(!wrap.classList.contains('open'));
+    });
+
+    // Click anywhere outside the menu closes it.
+    document.addEventListener('click', function (event) {
+        if (!wrap.contains(event.target)) { setOpen(false); }
+    });
+
+    // Escape closes it too, and hands focus back to the button.
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && wrap.classList.contains('open')) {
+            setOpen(false);
+            toggle.focus();
+        }
+    });
+
+    // Choosing the theme switch flips the theme and tidies the menu away.
+    wrap.querySelectorAll('.theme-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () { setOpen(false); });
+    });
+})();
+</script>
+
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}
+
+{% comment %}
+Same EN / MN switch as the storefront navbar.
+{% endcomment %}
+
+<div
+    class="admin-lang-switch"
+    role="group"
+    aria-label="{{ T.admin_lang_label }}"
+>
+
+{% for code, label in AVAILABLE_LANGUAGES %}
+
+<a
+    href="{% url 'set_language' code %}?next={{ request.get_full_path|urlencode }}"
+    class="admin-lang-btn{% if LANG == code %} active{% endif %}"
+>
+    {{ label }}
+</a>
+
+{% endfor %}
+
+</div>
+
+{% endblock %}
+
+{% block extrabody %}
+
+<!-- =========================================================
+     PAGE LOADING OVERLAY (same idea as the storefront's)
+     ========================================================= -->
+
+<div id="page-loading-overlay">
+    <div class="page-loading-spinner"></div>
+</div>
+
+<script
+    src="{% static 'js/admin-page-loader.js' %}"
+    defer
+></script>
+
+<!-- =========================================================
+     GLOBAL BACK BUTTON
+     ========================================================= -->
+
+<script>
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+
+        var content =
+            document.getElementById(
+                'content'
+            );
+
+
+        if (!content) {
+            return;
+        }
+
+
+        var currentPath =
+            window.location.pathname;
+
+
+        if (
+            currentPath === '/admin/' ||
+            currentPath === '/admin'
+        ) {
+            return;
+        }
+
+
+        if (
+            document.querySelector(
+                '.global-back-button'
+            )
+        ) {
+            return;
+        }
+
+
+        var button =
+            document.createElement('a');
+
+
+        button.href = '/admin/';
+
+        button.className =
+            'global-back-button';
+
+
+        var currentLang =
+            "{{ LANG|default:'mn'|escapejs }}";
+
+
+        var backText = (window.BSHOP_I18N && window.BSHOP_I18N.back) || 'Back';
+
+
+        button.innerHTML =
+            '<span class="global-back-button-icon">←</span>' +
+            '<span class="global-back-button-text">' +
+            backText +
+            '</span>';
+
+
+        if (content.firstElementChild) {
+
+            content.insertBefore(
+                button,
+                content.firstElementChild
+            );
+
+        } else {
+
+            content.appendChild(
+                button
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+<!-- =========================================================
+     BSHOP ADMIN ADD POPUP
+     ========================================================= -->
+
+<style>
+
+.bshop-add-popup-overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 99999;
+
+    display: none;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: rgba(
+        0,
+        0,
+        0,
+        0.72
+    );
+
+    backdrop-filter: blur(5px);
+
+    padding: 28px;
+
+}
+
+
+.bshop-add-popup-overlay.active {
+
+    display: flex;
+
+}
+
+
+.bshop-add-popup {
+
+    position: relative;
+
+    width: min(
+        1100px,
+        95vw
+    );
+
+    height: min(
+        850px,
+        92vh
+    );
+
+    background:
+        var(--body-bg, #fff);
+
+    color:
+        var(--body-fg, #333);
+
+    border-radius: 16px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 25px 80px
+        rgba(
+            0,
+            0,
+            0,
+            0.5
+        );
+
+    display: flex;
+
+    flex-direction: column;
+
+}
+
+
+.bshop-add-popup-header {
+
+    min-height: 64px;
+
+    padding: 0 22px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    border-bottom:
+        1px solid
+        rgba(
+            128,
+            128,
+            128,
+            0.2
+        );
+
+    flex-shrink: 0;
+
+}
+
+
+.bshop-add-popup-title {
+
+    font-family:
+        "Roboto Slab",
+        serif;
+
+    font-size: 20px;
+
+    font-weight: 700;
+
+}
+
+
+.bshop-add-popup-close {
+
+    width: 38px;
+
+    height: 38px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background:
+        transparent;
+
+    color: inherit;
+
+    font-size: 25px;
+
+    line-height: 1;
+
+    cursor: pointer;
+
+}
+
+
+.bshop-add-popup-close:hover {
+
+    background:
+        rgba(
+            128,
+            128,
+            128,
+            0.15
+        );
+
+}
+
+
+.bshop-add-popup-body {
+
+    position: relative;
+
+    flex: 1;
+
+    overflow-y: auto;
+
+    overflow-x: hidden;
+
+    padding: 0;
+
+}
+
+
+.bshop-add-popup-content {
+
+    padding:
+        24px
+        28px
+        90px;
+
+    min-height: 100%;
+
+    box-sizing: border-box;
+
+}
+
+
+.bshop-add-popup-content #content {
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+}
+
+
+.bshop-add-popup-content #container {
+
+    margin: 0 !important;
+
+}
+
+
+.bshop-add-popup-content .breadcrumbs {
+
+    display: none !important;
+
+}
+
+
+.bshop-add-popup-loading {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 20;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        var(--body-bg, #fff);
+
+    font-family:
+        "DM Sans",
+        sans-serif;
+
+    font-size: 15px;
+
+}
+
+
+.bshop-add-popup-loading.hidden {
+
+    display: none;
+
+}
+
+
+.bshop-add-popup-footer {
+
+    position: absolute;
+
+    right: 20px;
+
+    bottom: 20px;
+
+    z-index: 30;
+
+    display: flex;
+
+    gap: 10px;
+
+}
+
+
+.bshop-add-popup-cancel {
+
+    border:
+        1px solid
+        rgba(
+            128,
+            128,
+            128,
+            0.35
+        );
+
+    border-radius: 8px;
+
+    padding:
+        10px
+        20px;
+
+    background:
+        var(--body-bg, #fff);
+
+    color: inherit;
+
+    font-family:
+        "DM Sans",
+        sans-serif;
+
+    font-size: 14px;
+
+    font-weight: 500;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 4px 15px
+        rgba(
+            0,
+            0,
+            0,
+            0.12
+        );
+
+    transition: 0.2s;
+
+}
+
+
+.bshop-add-popup-cancel:hover {
+
+    background:
+        rgba(
+            128,
+            128,
+            128,
+            0.1
+        );
+
+    transform:
+        translateY(-1px);
+
+}
+
+
+body.bshop-popup-open {
+
+    overflow: hidden;
+
+}
+
+
+.bshop-add-popup-content .submit-row {
+
+    padding-right: 10px;
+
+}
+
+
+@media (max-width: 700px) {
+
+    .bshop-add-popup-overlay {
+
+        padding: 10px;
+
+    }
+
+
+    .bshop-add-popup {
+
+        width: 100%;
+
+        height: 95vh;
+
+        border-radius: 12px;
+
+    }
+
+
+    .bshop-add-popup-header {
+
+        min-height: 56px;
+
+    }
+
+
+    .bshop-add-popup-title {
+
+        font-size: 17px;
+
+    }
+
+
+    .bshop-add-popup-content {
+
+        padding:
+            18px
+            16px
+            100px;
+
+    }
+
+}
+
+</style>
+
+<style>
+/* Open/close animation (0.5 s) */
+.bshop-add-popup-overlay {
+    display: flex;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .5s ease, visibility 0s linear .5s;
+}
+.bshop-add-popup-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .5s ease, visibility 0s;
+}
+.bshop-add-popup {
+    transform: translateY(16px) scale(.96);
+    transition: transform .5s ease;
+}
+.bshop-add-popup-overlay.active .bshop-add-popup {
+    transform: none;
+}
+</style>
+
+<!-- =========================================================
+     POPUP HTML
+     ========================================================= -->
+
+<div
+    class="bshop-add-popup-overlay"
+    id="bshop-add-popup-overlay"
+>
+
+```
+<div
+    class="bshop-add-popup"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="bshop-add-popup-title"
+>
+
+
+    <div
+        class="bshop-add-popup-header"
+    >
+
+
+        <div
+            class="bshop-add-popup-title"
+            id="bshop-add-popup-title"
+        >
+
+            {{ T.admin_btn_add }}
+
+        </div>
+
+
+        <button
+            type="button"
+            class="bshop-add-popup-close"
+            id="bshop-add-popup-close"
+        >
+
+            ×
+
+        </button>
+
+
+    </div>
+
+
+
+    <div
+        class="bshop-add-popup-body"
+    >
+
+
+        <div
+            class="bshop-add-popup-loading"
+            id="bshop-add-popup-loading"
+        >
+
+            {{ T.admin_loading }}
+
+        </div>
+
+
+
+        <div
+            class="bshop-add-popup-content"
+            id="bshop-add-popup-content"
+        ></div>
+
+
+    </div>
+
+
+
+    <div
+        class="bshop-add-popup-footer"
+    >
+
+
+        <button
+            type="button"
+            class="bshop-add-popup-cancel"
+            id="bshop-add-popup-cancel"
+        >
+
+            {{ T.admin_btn_cancel_popup }}
+
+        </button>
+
+
+    </div>
+
+
+</div>
+```
+
+</div>
+
+<!-- =========================================================
+     POPUP JAVASCRIPT
+     ========================================================= -->
+
+<script>
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+
+
+        var overlay =
+            document.getElementById(
+                'bshop-add-popup-overlay'
+            );
+
+
+        var content =
+            document.getElementById(
+                'bshop-add-popup-content'
+            );
+
+
+        var loading =
+            document.getElementById(
+                'bshop-add-popup-loading'
+            );
+
+
+        var closeButton =
+            document.getElementById(
+                'bshop-add-popup-close'
+            );
+
+
+        var cancelButton =
+            document.getElementById(
+                'bshop-add-popup-cancel'
+            );
+
+
+        var title =
+            document.getElementById(
+                'bshop-add-popup-title'
+            );
+
+
+        if (
+            !overlay ||
+            !content
+        ) {
+
+            return;
+
+        }
+
+
+
+        /*
+         * Popup дотор нээгдсэн
+         * Django /add/ URL.
+         */
+        var currentPopupUrl = '';
+
+
+
+        /*
+         * OPEN POPUP
+         */
+
+        function openPopup(
+            url,
+            linkText
+        ) {
+
+
+            /*
+             * Хамгийн чухал:
+             * Анх дарсан /add/ URL-ийг хадгална.
+             */
+            currentPopupUrl = url;
+
+
+            title.textContent =
+                linkText || window.BSHOP_I18N.add;
+
+
+            content.innerHTML = '';
+
+
+            loading.classList.remove(
+                'hidden'
+            );
+
+
+            overlay.classList.add(
+                'active'
+            );
+
+
+            document.body.classList.add(
+                'bshop-popup-open'
+            );
+
+
+
+            fetch(
+                url,
+                {
+                    method: 'GET',
+
+                    credentials:
+                        'same-origin',
+
+                    headers: {
+                        'X-Requested-With':
+                            'XMLHttpRequest'
+                    }
+                }
+            )
+
+
+            .then(
+                function (response) {
+
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            'HTTP ' +
+                            response.status
+                        );
+
+                    }
+
+
+                    return response.text();
+
+
+                }
+            )
+
+
+            .then(
+                function (html) {
+
+
+                    var parser =
+                        new DOMParser();
+
+
+                    var doc =
+                        parser.parseFromString(
+                            html,
+                            'text/html'
+                        );
+
+
+                    var pageContent =
+                        doc.querySelector(
+                            '#content'
+                        );
+
+
+                    if (!pageContent) {
+
+                        pageContent =
+                            doc.querySelector(
+                                '#container'
+                            );
+
+                    }
+
+
+                    if (!pageContent) {
+
+                        throw new Error(
+                            window.BSHOP_I18N.formNotFound
+                        );
+
+                    }
+
+
+                    content.innerHTML =
+                        pageContent.innerHTML;
+
+
+                    loading.classList.add(
+                        'hidden'
+                    );
+
+
+                    setupPopupForm();
+
+
+                }
+            )
+
+
+            .catch(
+                function (error) {
+
+
+                    loading.classList.add(
+                        'hidden'
+                    );
+
+
+                    content.innerHTML =
+                        '<div style="padding:30px;">' +
+                        '<strong>' +
+                        window.BSHOP_I18N.formError +
+                        '</strong>' +
+                        '<br><br>' +
+                        '<small>' +
+                        error.message +
+                        '</small>' +
+                        '</div>';
+
+
+                    console.error(
+                        'Bshop Add Popup Error:',
+                        error
+                    );
+
+
+                }
+            );
+
+        }
+
+
+
+        /*
+         * CLOSE POPUP
+         */
+
+        function closePopup() {
+
+            overlay.classList.remove('active');
+
+            document.body.classList.remove('bshop-popup-open');
+
+            currentPopupUrl = '';
+
+            // Empty the box only after the 0.5 s fade-out.
+            setTimeout(function () {
+                if (!overlay.classList.contains('active')) {
+                    content.innerHTML = '';
+                }
+            }, 500);
+
+        }
+
+
+
+        /*
+         * FORM SUBMIT
+         */
+
+        function setupPopupForm() {
+
+
+            var form =
+                content.querySelector(
+                    'form'
+                );
+
+
+            if (!form) {
+
+                return;
+
+            }
+
+
+
+            form.addEventListener(
+                'submit',
+                function (event) {
+
+
+                    event.preventDefault();
+
+
+
+                    var formData =
+                        new FormData(
+                            form
+                        );
+
+
+
+                    loading.classList.remove(
+                        'hidden'
+                    );
+
+
+
+                    /*
+                     * HTML attribute-ийг шууд авна.
+                     *
+                     * form.action ашиглахгүй.
+                     */
+                    var formAction =
+                        form.getAttribute(
+                            'action'
+                        );
+
+
+
+                    /*
+                     * Хэрэв action хоосон бол
+                     * openPopup() дээр хадгалсан
+                     * бодит /add/ URL ашиглана.
+                     */
+                    var submitUrl =
+                        formAction ||
+                        currentPopupUrl;
+
+
+
+                    /*
+                     * Ямар нэг шалтгаанаар
+                     * URL байхгүй бол одоогийн
+                     * URL-ийг fallback болгоно.
+                     */
+                    if (!submitUrl) {
+
+                        submitUrl =
+                            window.location.href;
+
+                    }
+
+
+
+                    fetch(
+                        submitUrl,
+                        {
+                            method: 'POST',
+
+                            body: formData,
+
+                            credentials:
+                                'same-origin',
+
+                            headers: {
+                                'X-Requested-With':
+                                    'XMLHttpRequest'
+                            }
+                        }
+                    )
+
+
+                    .then(
+                        function (response) {
+
+
+                            return response.text()
+                                .then(
+                                    function (html) {
+
+                                        return {
+                                            response:
+                                                response,
+
+                                            html:
+                                                html
+                                        };
+
+                                    }
+                                );
+
+                        }
+                    )
+
+
+                    .then(
+                        function (result) {
+
+
+                            var response =
+                                result.response;
+
+
+                            var html =
+                                result.html;
+
+
+                            var finalUrl =
+                                response.url ||
+                                '';
+
+
+
+                            /*
+                             * Save амжилттай болсон
+                             * эсэхийг шалгана.
+                             */
+
+                            var stillAddPage =
+                                finalUrl.indexOf(
+                                    '/add/'
+                                ) !== -1;
+
+
+
+                            if (
+                                response.redirected &&
+                                !stillAddPage
+                            ) {
+
+
+                                closePopup();
+
+
+                                setTimeout(function () { window.location.reload(); }, 500);   // let the fade-out finish
+
+
+                                return;
+
+
+                            }
+
+
+
+                            /*
+                             * Validation error
+                             * гарсан үед form-ийг
+                             * popup дотор дахин харуулна.
+                             */
+
+                            var parser =
+                                new DOMParser();
+
+
+                            var doc =
+                                parser.parseFromString(
+                                    html,
+                                    'text/html'
+                                );
+
+
+                            var pageContent =
+                                doc.querySelector(
+                                    '#content'
+                                );
+
+
+                            if (!pageContent) {
+
+                                pageContent =
+                                    doc.querySelector(
+                                        '#container'
+                                    );
+
+                            }
+
+
+
+                            if (pageContent) {
+
+                                content.innerHTML =
+                                    pageContent.innerHTML;
+
+                            } else {
+
+                                content.innerHTML =
+                                    html;
+
+                            }
+
+
+
+                            loading.classList.add(
+                                'hidden'
+                            );
+
+
+                            setupPopupForm();
+
+
+                        }
+                    )
+
+
+                    .catch(
+                        function (error) {
+
+
+                            loading.classList.add(
+                                'hidden'
+                            );
+
+
+                            console.error(
+                                'Save Error:',
+                                error
+                            );
+
+
+                        }
+                    );
+
+
+                }
+            );
+
+        }
+
+
+
+        /*
+         * DJANGO ADMIN /ADD/ LINKS
+         */
+
+        document.addEventListener(
+            'click',
+            function (event) {
+
+
+                var link =
+                    event.target.closest(
+                        'a'
+                    );
+
+
+                if (!link) {
+
+                    return;
+
+                }
+
+
+
+                var href =
+                    link.getAttribute(
+                        'href'
+                    );
+
+
+                if (!href) {
+
+                    return;
+
+                }
+
+
+
+                /*
+                 * Зөвхөн:
+                 *
+                 * /admin/.../add/
+                 */
+
+                var isAdminAdd =
+                    href.indexOf(
+                        '/admin/'
+                    ) === 0 &&
+
+                    href.indexOf(
+                        '/add/'
+                    ) !== -1;
+
+
+
+                if (!isAdminAdd) {
+
+                    return;
+
+                }
+
+
+
+                if (
+                    link.target ===
+                        '_blank' ||
+
+                    link.hasAttribute(
+                        'download'
+                    )
+                ) {
+
+                    return;
+
+                }
+
+
+
+                event.preventDefault();
+
+
+                event.stopPropagation();
+
+
+
+                var linkText =
+                    link.textContent.trim();
+
+
+
+                openPopup(
+                    href,
+                    linkText || window.BSHOP_I18N.add
+                );
+
+
+            },
+            true
+        );
+
+
+
+        /*
+         * CLOSE BUTTON
+         */
+
+        closeButton.addEventListener(
+            'click',
+            function () {
+
+                closePopup();
+
+            }
+        );
+
+
+
+        /*
+         * CANCEL BUTTON
+         */
+
+        cancelButton.addEventListener(
+            'click',
+            function () {
+
+                closePopup();
+
+            }
+        );
+
+
+
+        /*
+         * OVERLAY CLICK
+         */
+
+        overlay.addEventListener(
+            'click',
+            function (event) {
+
+
+                if (
+                    event.target ===
+                    overlay
+                ) {
+
+                    closePopup();
+
+                }
+
+
+            }
+        );
+
+
+
+        /*
+         * ESC
+         */
+
+        document.addEventListener(
+            'keydown',
+            function (event) {
+
+
+                if (
+                    event.key ===
+                        'Escape' &&
+
+                    overlay.classList.contains(
+                        'active'
+                    )
+                ) {
+
+                    closePopup();
+
+                }
+
+
+            }
+        );
+
+
+    }
+);
+
+</script>
+
+{% endblock %}

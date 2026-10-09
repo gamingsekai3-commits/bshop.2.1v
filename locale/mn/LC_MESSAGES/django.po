@@ -1,0 +1,195 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: bshop\n"
+"Language: mn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "The app \"%s\" could not be found."
+msgstr "Апп \"%s\" олдсонгүй."
+
+msgid ", "
+msgstr ", "
+
+msgid "Run"
+msgstr "Гүйцэтгэх"
+
+msgid "Model name"
+msgstr "Моделийн нэр"
+
+msgid "Add link"
+msgstr "Нэмэх холбоос"
+
+msgid "Change or view list link"
+msgstr "Жагсаалт засах / харах холбоос"
+
+msgid "After you’ve created a user, you’ll be able to edit more user options."
+msgstr "Хэрэглэгчийг үүсгэсний дараа нэмэлт тохиргоог засах боломжтой болно."
+
+msgid "Error:"
+msgstr "Алдаа:"
+
+msgid ""
+"This action will <strong>enable</strong> password-based authentication for "
+"this user."
+msgstr ""
+"Энэ үйлдэл нь хэрэглэгчид нууц үгээр нэвтрэх боломжийг "
+"<strong>идэвхжүүлнэ</strong>."
+
+msgid "Disable password-based authentication"
+msgstr "Нууц үгээр нэвтрэхийг идэвхгүй болгох"
+
+msgid "Enable password-based authentication"
+msgstr "Нууц үгээр нэвтрэхийг идэвхжүүлэх"
+
+msgid "Filter by %(field_name)s"
+msgstr "%(field_name)s-аар шүүх"
+
+msgid ""
+"Deleting the %(object_name)s “%(escaped_object)s” would result in deleting "
+"related objects, but your account doesn't have permission to delete the "
+"following types of objects:"
+msgstr ""
+"“%(escaped_object)s” (%(object_name)s)-ийг устгавал холбогдох өгөгдөл мөн "
+"устах боловч таны эрх дараах төрлийн өгөгдлийг устгахад хүрэлцэхгүй байна:"
+
+msgid ""
+"Deleting the %(object_name)s “%(escaped_object)s” would require deleting the"
+" following protected related objects:"
+msgstr ""
+"“%(escaped_object)s” (%(object_name)s)-ийг устгахын тулд дараах "
+"хамгаалагдсан холбогдох өгөгдлийг мөн устгах шаардлагатай:"
+
+msgid ""
+"Are you sure you want to delete the %(object_name)s “%(escaped_object)s”? "
+"All of the following related items will be deleted:"
+msgstr ""
+"“%(escaped_object)s” (%(object_name)s)-ийг устгахдаа итгэлтэй байна уу? "
+"Дараах холбогдох өгөгдлүүд мөн устна:"
+
+msgid ""
+"Deleting the selected %(objects_name)s would result in deleting related "
+"objects, but your account doesn't have permission to delete the following "
+"types of objects:"
+msgstr ""
+"Сонгосон %(objects_name)s-ийг устгавал холбогдох өгөгдөл мөн устах боловч "
+"таны эрх дараах төрлийн өгөгдлийг устгахад хүрэлцэхгүй байна:"
+
+msgid ""
+"Deleting the selected %(objects_name)s would require deleting the following "
+"protected related objects:"
+msgstr ""
+"Сонгосон %(objects_name)s-ийг устгахын тулд дараах хамгаалагдсан холбогдох "
+"өгөгдлийг мөн устгах шаардлагатай:"
+
+msgid ""
+"Are you sure you want to delete the selected %(objects_name)s? All of the "
+"following objects and their related items will be deleted:"
+msgstr ""
+"Сонгосон %(objects_name)s-ийг устгахдаа итгэлтэй байна уу? Дараах өгөгдлүүд "
+"болон тэдгээртэй холбоотой бүх зүйл устна:"
+
+msgid "Forgotten your login credentials?"
+msgstr "Нэвтрэх мэдээллээ мартсан уу?"
+
+msgid "Pagination %(name)s entries"
+msgstr "%(name)s бичлэгийн хуудаслалт"
+
+msgid "Pagination %(name)s"
+msgstr "%(name)s хуудаслалт"
+
+msgid "Search %(name)s"
+msgstr "%(name)s хайх"
+
+msgid "Logout"
+msgstr "Гарах"
+
+msgid "In case you’ve forgotten, you are:"
+msgstr "Хэрэв мартсан бол, таны нэр:"
+
+msgid "Conflicting form data submitted. Please try again."
+msgstr "Маягтын өгөгдөл зөрчилдсөн байна. Дахин оролдоно уу."
+
+msgid "Password-based authentication was disabled."
+msgstr "Нууц үгээр нэвтрэх идэвхгүй боллоо."
+
+msgid "Set password: %s"
+msgstr "Нууц үг тохируулах: %s"
+
+msgid "Reset password"
+msgstr "Нууц үг сэргээх"
+
+msgid "Set password"
+msgstr "Нууц үг тохируулах"
+
+msgid "The two password fields didn’t match."
+msgstr "Хоёр нууц үг таарахгүй байна."
+
+msgid ""
+"Whether the user will be able to authenticate using a password or not. If "
+"disabled, they may still be able to authenticate using other backends, such "
+"as Single Sign-On or LDAP."
+msgstr ""
+"Хэрэглэгч нууц үгээр нэвтрэх эсэх. Идэвхгүй болговол Single Sign-On, LDAP "
+"зэрэг өөр аргаар нэвтэрч болно."
+
+msgid "Password-based authentication"
+msgstr "Нууц үгээр нэвтрэх"
+
+msgid "Enabled"
+msgstr "Идэвхтэй"
+
+msgid "Disabled"
+msgstr "Идэвхгүй"
+
+msgid ""
+"Raw passwords are not stored, so there is no way to see the user’s password."
+msgstr ""
+"Нууц үгийг шифрлэгдсэн хэлбэрээр хадгалдаг тул хэрэглэгчийн нууц үгийг харах"
+" боломжгүй."
+
+msgid ""
+"Enable password-based authentication for this user by setting a password."
+msgstr ""
+"Нууц үг тохируулснаар энэ хэрэглэгчид нууц үгээр нэвтрэх боломжийг "
+"идэвхжүүлнэ."
+
+msgid "block size"
+msgstr "блокийн хэмжээ"
+
+msgid "Your password can’t be too similar to your other personal information."
+msgstr "Нууц үг таны бусад хувийн мэдээлэлтэй хэт төстэй байж болохгүй."
+
+msgid "Your password can’t be a commonly used password."
+msgstr "Нууц үг түгээмэл хэрэглэгддэг нууц үг байж болохгүй."
+
+msgid "Your password can’t be entirely numeric."
+msgstr "Нууц үг зөвхөн тооноос тогтож болохгүй."
+
+msgid ""
+"Enter a valid username. This value may contain only unaccented lowercase a-z"
+" and uppercase A-Z letters, numbers, and @/./+/-/_ characters."
+msgstr ""
+"Зөв нэвтрэх нэр оруулна уу. Зөвхөн латин үсэг (a-z, A-Z), тоо болон "
+"@/./+/-/_ тэмдэгт ашиглана."
+
+msgid ""
+"Enter a valid username. This value may contain only letters, numbers, and "
+"@/./+/-/_ characters."
+msgstr ""
+"Зөв нэвтрэх нэр оруулна уу. Зөвхөн үсэг, тоо болон @/./+/-/_ тэмдэгт "
+"ашиглана."
+
+msgid "…and %(count)d more object."
+msgid_plural "…and %(count)d more objects."
+msgstr[0] "…мөн %(count)d өгөгдөл байна."
+msgstr[1] "…мөн %(count)d өгөгдөл байна."
+
+msgid "This password is too short. It must contain at least %d character."
+msgid_plural ""
+"This password is too short. It must contain at least %d characters."
+msgstr[0] "Нууц үг хэт богино байна. Хамгийн багадаа %d тэмдэгт байх ёстой."
+msgstr[1] "Нууц үг хэт богино байна. Хамгийн багадаа %d тэмдэгт байх ёстой."

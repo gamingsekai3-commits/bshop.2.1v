@@ -1,0 +1,125 @@
+{% load humanize %}
+<div class="stepper">
+    <div class="step {% if current_step == 1 %}is-current{% elif current_step > 1 %}is-done{% endif %}"><b>{% if current_step > 1 %}&#10003;{% else %}1{% endif %}</b><span>Агуулхаас авах</span><em>{{ receive_n }}</em></div>
+    <div class="step {% if current_step == 2 %}is-current{% elif current_step > 2 %}is-done{% else %}is-locked{% endif %}"><b>{% if current_step > 2 %}&#10003;{% else %}2{% endif %}</b><span>Замд гарах</span><em>{{ step2_n }}</em></div>
+    <div class="step {% if current_step == 3 %}is-current{% else %}is-locked{% endif %}"><b>3</b><span>Хүргэсэн батлах</span><em>{{ to_confirm|length }}</em></div>
+</div>
+<p class="muted summary">Өнөөдөр хүргэсэн: <b>{{ done_today }}</b> · Амжилтгүй: <b>{{ failed_today }}</b></p>
+
+{# ------------------------------ 1 ------------------------------ #}
+{% if current_step == 1 %}
+<section class="module" id="step-1">
+    <h2>1 · Агуулхаас бараа авах <small>Танд оноогдсон захиалгууд</small></h2>
+    {% if to_receive or pool %}
+    <form class="js-step" data-step="receive">
+        <label class="check-all"><input type="checkbox" class="js-all" checked> Бүгдийг сонгох</label>
+        <ul class="orders">
+        {% for d in to_receive %}
+            <li><label class="order-row">
+                <input type="checkbox" name="ids" value="{{ d.pk }}" checked>
+                <span class="oid">#{{ d.order_id }}</span>
+                <span class="info"><strong>{{ d.order.name }}</strong> · {{ d.district|default:"" }} {{ d.delivery_address|truncatechars:50 }}
+                    <small>{% for i in d.order.items.all %}{{ i.name|default:i.product.name }}×{{ i.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></span>
+                <span class="price">₮{{ d.order.get_total_price|floatformat:0|intcomma }}</span>
+            </label></li>
+        {% endfor %}
+        {% if pool %}<li class="pool-title">Авч болох захиалгууд <small>(хүргэгч оноогоогүй)</small></li>{% endif %}
+        {% for d in pool %}
+            <li><label class="order-row">
+                <input type="checkbox" name="ids" value="{{ d.pk }}">
+                <span class="oid">#{{ d.order_id }}</span>
+                <span class="info"><strong>{{ d.order.name }}</strong> · {{ d.district|default:"" }} {{ d.delivery_address|truncatechars:50 }}
+                    <small>{% for i in d.order.items.all %}{{ i.name|default:i.product.name }}×{{ i.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></span>
+                <span class="price">₮{{ d.order.get_total_price|floatformat:0|intcomma }}</span>
+            </label></li>
+        {% endfor %}
+        </ul>
+        <button class="btn btn-primary btn-block" type="submit">Сонгосныг авлаа (агуулхаас)</button>
+    </form>
+    {% else %}<p class="empty">Агуулхаас авах захиалга алга.</p>{% endif %}
+</section>
+{% endif %}
+
+{# ------------------------------ 2 ------------------------------ #}
+{% if current_step == 2 %}
+<section class="module" id="step-2">
+    <h2>2 · Замд гарах <small>{% if to_depart %}Агуулхаас авсан захиалгууд{% else %}Замд яваа - хүргэж өгсөн барааг сонгож буулгана ({{ unloaded_n }}/{{ onway_total }} буусан){% endif %}</small></h2>
+    {% if to_depart %}
+    <form class="js-step" data-step="depart">
+        <label class="check-all"><input type="checkbox" class="js-all" checked> Бүгдийг сонгох</label>
+        <ul class="orders">
+        {% for d in to_depart %}
+            <li><label class="order-row">
+                <input type="checkbox" name="ids" value="{{ d.pk }}" checked>
+                <span class="oid">#{{ d.order_id }}</span>
+                <span class="info"><strong>{{ d.order.name }}</strong> · <a href="tel:{{ d.phone }}">{{ d.phone }}</a>
+                    <small>{{ d.delivery_address|truncatechars:70 }}</small></span>
+            </label></li>
+        {% endfor %}
+        </ul>
+        <button class="btn btn-primary btn-block" type="submit">Замд гарах</button>
+    </form>
+    {% endif %}
+    {% if to_unload %}
+    <form class="js-step" data-step="unload">
+        <p class="muted unload-title">Буулгаж хүргэж өгсөн захиалгуудаа сонгоно уу</p>
+        <label class="check-all"><input type="checkbox" class="js-all"> Бүгдийг сонгох</label>
+        <ul class="orders">
+        {% for d in to_unload %}
+            <li><label class="order-row">
+                <input type="checkbox" name="ids" value="{{ d.pk }}">
+                <span class="oid">#{{ d.order_id }}</span>
+                <span class="info"><strong>{{ d.order.name }}</strong> · <a href="tel:{{ d.phone }}">{{ d.phone }}</a>
+                    <small>{{ d.delivery_address|truncatechars:70 }}</small>
+                    <small>{% for i in d.order.items.all %}{{ i.name|default:i.product.name }}×{{ i.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></span>
+                <span class="price">₮{{ d.order.get_total_price|floatformat:0|intcomma }}</span>
+            </label></li>
+        {% endfor %}
+        </ul>
+        <button class="btn btn-primary btn-block" type="submit">Сонгосныг буулгалаа</button>
+    </form>
+    {% endif %}
+</section>
+{% endif %}
+
+{# ------------------------------ 3 ------------------------------ #}
+{% if current_step == 3 %}
+<section class="module" id="step-3">
+    <h2>3 · Хүргэснийг захиалгын ID-аар батлах <small>Замд яваа захиалгууд</small></h2>
+    {% if to_confirm %}
+    <form class="js-confirm-id id-box" data-step="confirm">
+        <input type="hidden" name="result" value="deliver">
+        <input type="text" name="order_id" inputmode="numeric" placeholder="Захиалгын ID (жишээ: 128)" autocomplete="off" required>
+        <button class="btn btn-success" type="submit">Хүргэгдсэн</button>
+    </form>
+    <ul class="orders">
+    {% for d in to_confirm %}
+        <li class="order-row" data-order="{{ d.order_id }}">
+            <span class="oid">#{{ d.order_id }}</span>
+            <span class="info"><strong>{{ d.order.name }}</strong> · <a href="tel:{{ d.phone }}">{{ d.phone }}</a>
+                <small>{{ d.delivery_address|truncatechars:70 }}</small></span>
+            <span class="price">₮{{ d.order.get_total_price|floatformat:0|intcomma }}</span>
+            <span class="actions">
+                <button type="button" class="btn btn-success btn-small js-deliver" data-order="{{ d.order_id }}">Хүргэсэн</button>
+                <button type="button" class="btn btn-danger btn-small js-fail" data-order="{{ d.order_id }}">Амжилтгүй</button>
+            </span>
+        </li>
+    {% endfor %}
+    </ul>
+    {% else %}<p class="empty">Батлах захиалга алга.</p>{% endif %}
+</section>
+{% endif %}
+
+<dialog id="fail-dialog">
+    <form class="js-fail-form" data-step="confirm">
+        <h3>Захиалга <span class="js-fail-id"></span> амжилтгүй</h3>
+        <input type="hidden" name="result" value="fail">
+        <input type="hidden" name="order_id">
+        <label>{{ fail_form.reason.label }}</label>{{ fail_form.reason }}
+        <label>{{ fail_form.note.label }}</label>{{ fail_form.note }}
+        <div class="dlg-actions">
+            <button type="button" class="btn js-close">Болих</button>
+            <button type="submit" class="btn btn-danger">Тэмдэглэх</button>
+        </div>
+    </form>
+</dialog>

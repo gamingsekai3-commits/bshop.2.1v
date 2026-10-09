@@ -1,0 +1,1555 @@
+/* ============================================================
+   BSHOP ADMIN — matches the storefront's "Premium Dark Edition"
+   palette (gold accent, near-black surfaces) with a persistent
+   sidebar. Light mode mirrors the storefront's light overrides.
+   ============================================================ */
+
+/* 1. Light Mode (Default) — mirrors storefront [data-theme="light"] */
+:root,
+html[data-theme="light"] {
+    --primary: #c9880a;
+    --secondary: #a36d06;
+    --accent: #c9880a;
+    --primary-fg: #ffffff;
+
+    --body-fg: #444444;
+    --body-bg: #f5f3ee;
+    --body-quiet-color: #777777;
+    --body-medium-color: #555555;
+    --body-loud-color: #1a1a1a;
+
+    --header-color: #1a1a1a;
+    --header-branding-color: #c9880a;
+    --header-bg: #ffffff;
+    --header-link-color: #1a1a1a;
+
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e8e5df;
+    --sidebar-fg: #777777;
+    --sidebar-heading: #1a1a1a;
+    --sidebar-active-bg: rgba(201, 136, 10, 0.12);
+    --sidebar-active-fg: #a36d06;
+
+    --breadcrumbs-fg: #777777;
+    --breadcrumbs-link-fg: #1a1a1a;
+    --breadcrumbs-bg: #ffffff;
+
+    --link-fg: #1a1a1a;
+    --link-hover-color: #c9880a;
+    --link-selected-fg: #a36d06;
+
+    --hairline-color: #e8e5df;
+    --border-color: #e8e5df;
+
+    --error-fg: #d63939;
+
+    --darkened-bg: #efece4;
+    --selected-bg: rgba(201, 136, 10, 0.08);
+    --selected-row: rgba(201, 136, 10, 0.12);
+
+    --button-fg: #ffffff;
+    --button-bg: var(--primary);
+    --button-hover-bg: var(--secondary);
+    --default-button-bg: var(--primary);
+    --default-button-hover-bg: var(--secondary);
+    --close-button-bg: #9ca3af;
+    --close-button-hover-bg: #6b7280;
+    --delete-button-bg: #d63939;
+    --delete-button-hover-bg: #b82f2f;
+
+    --object-tools-fg: #ffffff;
+    --object-tools-bg: #c9880a;
+    --object-tools-hover-bg: #a36d06;
+
+    --font-family-primary: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-family-heading: "Roboto Slab", serif;
+
+    --admin-radius: 12px;
+    --admin-radius-sm: 8px;
+    --admin-shadow: 0 1px 3px rgba(26, 26, 26, 0.05), 0 4px 12px rgba(26, 26, 26, 0.04);
+}
+
+/* 2. Dark Mode — mirrors storefront default (no [data-theme] = dark) */
+html[data-theme="dark"] {
+    --primary: #e8c84a;
+    --secondary: #c9a832;
+    --accent: #e8c84a;
+    --primary-fg: #0a0a0a;
+
+    --body-fg: #d8d5ce;
+    --body-bg: #0a0a0a;
+    --body-quiet-color: #888888;
+    --body-medium-color: #b7b4ad;
+    --body-loud-color: #f5f3ee;
+
+    --header-color: #f5f3ee;
+    --header-branding-color: #e8c84a;
+    --header-bg: #111111;
+    --header-link-color: #f5f3ee;
+
+    --sidebar-bg: #111111;
+    --sidebar-border: #2a2a2a;
+    --sidebar-fg: #888888;
+    --sidebar-heading: #f5f3ee;
+    --sidebar-active-bg: rgba(232, 200, 74, 0.12);
+    --sidebar-active-fg: #e8c84a;
+
+    --breadcrumbs-fg: #888888;
+    --breadcrumbs-link-fg: #f5f3ee;
+    --breadcrumbs-bg: #111111;
+
+    --link-fg: #f5f3ee;
+    --link-hover-color: #e8c84a;
+    --link-selected-fg: #e8c84a;
+
+    --hairline-color: #2a2a2a;
+    --border-color: #2a2a2a;
+
+    --error-fg: #e84a4a;
+
+    --darkened-bg: #181818;
+    --selected-bg: rgba(232, 200, 74, 0.08);
+    --selected-row: rgba(232, 200, 74, 0.12);
+
+    --button-fg: #0a0a0a;
+    --button-bg: var(--primary);
+    --button-hover-bg: var(--secondary);
+    --default-button-bg: var(--primary);
+    --default-button-hover-bg: var(--secondary);
+    --close-button-bg: #4b4b4b;
+    --close-button-hover-bg: #6b7280;
+    --delete-button-bg: #e84a4a;
+    --delete-button-hover-bg: #c93d3d;
+
+    --object-tools-fg: #0a0a0a;
+    --object-tools-bg: #e8c84a;
+    --object-tools-hover-bg: #c9a832;
+
+    --admin-radius: 12px;
+    --admin-radius-sm: 8px;
+    --admin-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- Base type & components ---------------------------------------- */
+body {
+    font-family: var(--font-family-primary);
+    background-color: var(--body-bg);
+    color: var(--body-fg);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-heading);
+    color: var(--body-loud-color);
+}
+
+/* Header (top bar) */
+#header {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--hairline-color);
+    box-shadow: none;
+    padding: 12px 24px;
+}
+#branding h1, #site-name {
+    font-family: var(--font-family-heading);
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+.bshop-brand-mark {
+    color: var(--header-branding-color) !important;
+}
+#user-tools {
+    font-size: 13px;
+    color: var(--body-quiet-color);
+}
+#user-tools a {
+    color: var(--header-link-color);
+    border-bottom: none;
+    padding: 2px 8px;
+    border-radius: var(--admin-radius-sm);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+#user-tools a:hover {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-fg);
+}
+
+/* Language switch (EN / МН) — mirrors the storefront navbar's .lang-switch */
+.admin-lang-switch {
+    display: inline-flex;
+    margin-left: 16px;
+    border: 1px solid var(--hairline-color);
+    border-radius: var(--admin-radius-sm);
+    overflow: hidden;
+    vertical-align: middle;
+}
+.admin-lang-switch .admin-lang-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+    color: var(--body-quiet-color);
+    background: var(--header-bg);
+    text-decoration: none;
+    border: none;
+    border-radius: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.admin-lang-switch .admin-lang-btn + .admin-lang-btn {
+    border-left: 1px solid var(--hairline-color);
+}
+.admin-lang-switch .admin-lang-btn:hover {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-fg);
+}
+.admin-lang-switch .admin-lang-btn.active {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+
+/* On the login page the header is centred, so centre the switch too. */
+.login #header .admin-lang-switch {
+    margin: 10px 0 0;
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+    background: var(--breadcrumbs-bg);
+    color: var(--breadcrumbs-fg);
+    border-bottom: 1px solid var(--hairline-color);
+    font-size: 13px;
+    padding: 10px 24px;
+}
+div.breadcrumbs a {
+    color: var(--breadcrumbs-link-fg);
+}
+div.breadcrumbs a:hover {
+    color: var(--sidebar-active-fg);
+}
+
+/* ---- OFF-CANVAS SIDEBAR ----------------------------------------------
+   Hidden by default, slides in from the left when the burger button
+   (top-right) is clicked. Uses Django's own toggle-nav-sidebar JS hook
+   (nav_sidebar.js) — no custom JS needed for the open/close logic. */
+
+.main > #nav-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 270px;
+    flex: none;
+    z-index: 1000;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    padding: 0 0 24px;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 0 0 0 rgba(0,0,0,0);
+}
+#nav-sidebar[aria-expanded="true"] {
+    transform: translateX(0);
+    box-shadow: 8px 0 24px rgba(0,0,0,0.18);
+}
+
+/* content never gets pushed — sidebar overlays it */
+.main > #nav-sidebar + .content {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+}
+
+/* dim backdrop behind the open sidebar, click to close */
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 900;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+#nav-sidebar[aria-expanded="true"] ~ .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Burger toggle button — fixed top-right, matching the reference layout */
+.toggle-nav-sidebar {
+    position: fixed;
+    top: 16px;
+    right: 24px;
+    z-index: 1100;
+    width: 50px;
+    height: 50spx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--admin-radius-sm);
+    cursor: pointer;
+}
+.burger-bar {
+    width: 18px;
+    height: 2px;
+    background: var(--body-fg);
+    border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.main:has(#nav-sidebar[aria-expanded="true"]) .toggle-nav-sidebar .burger-bar:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+}
+.main:has(#nav-sidebar[aria-expanded="true"]) .toggle-nav-sidebar .burger-bar:nth-child(2) {
+    opacity: 0;
+}
+.main:has(#nav-sidebar[aria-expanded="true"]) .toggle-nav-sidebar .burger-bar:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+}
+
+/* Profile block at the top of the sidebar */
+.sidebar-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 32px 16px 20px;
+    border-bottom: 1px solid var(--sidebar-border);
+    margin-bottom: 12px;
+}
+.sidebar-avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sidebar-active-bg);
+    color: var(--primary);
+    margin-bottom: 10px;
+}
+.sidebar-username {
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    color: var(--sidebar-heading);
+    font-size: 14px;
+}
+.sidebar-email {
+    font-size: 11px;
+    color: var(--sidebar-fg);
+    margin-top: 2px;
+}
+
+#nav-filter {
+    width: calc(100% - 32px);
+    margin: 0 16px 16px;
+    padding: 8px 12px;
+    border-radius: var(--admin-radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--darkened-bg);
+    color: var(--body-fg);
+    font-family: var(--font-family-primary);
+}
+#nav-filter:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+#nav-sidebar .module {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    margin-bottom: 6px;
+}
+#nav-sidebar .module th,
+#nav-sidebar .module .app-header {
+    background: transparent;
+    background-image: none;
+    color: var(--sidebar-heading);
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 10px 16px 6px;
+}
+#nav-sidebar .module th::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 6px;
+    color: var(--primary);
+    font-size: 10px;
+}
+#nav-sidebar .module td a {
+    display: block;
+    padding: 8px 16px;
+    color: var(--sidebar-fg);
+    font-size: 14px;
+    border-radius: 0;
+    border-left: 3px solid transparent;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+#nav-sidebar .module a:hover {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-fg);
+}
+#nav-sidebar .current-app .section {
+    color: var(--sidebar-active-fg);
+    font-weight: 700;
+}
+
+/* App groups (Store, Cart, ...) no longer navigate anywhere when you
+   interact with their header - see templates/admin/app_list.html, where
+   the <a href="{{ app.app_url }}"> became a plain toggle <span>. Instead,
+   the group's model table (in .app-models-wrap) stays collapsed and only
+   opens, with a smooth 0.5s slide:
+     - on mouse hover over the box, as a quick preview (pure CSS, below)
+     - on click/Enter/Space, which *locks* it open by toggling the
+       .app-expanded class (see nav-app-collapse.js) - it then stays open
+       even after the mouse leaves, until pressed again, exactly like a
+       normal collapsible menu
+     - always, for whichever app the current page belongs to
+
+   Deliberately NOT keyed off :focus-within: the toggle stays focused
+   after you click it, so tying the open state to focus meant a second
+   click could never actually close it again (focus alone kept it open
+   even once .app-expanded had already been removed).
+
+   The animation uses a "0fr -> 1fr" grid-template-rows transition rather
+   than max-height: a single grid track can transition smoothly to exactly
+   its content's real height, so there's no guessed max-height value and
+   no snapping/jump at the end the way max-height-based collapses tend to
+   have. */
+#nav-sidebar .module .app-models-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.5s ease;
+}
+#nav-sidebar .module:hover .app-models-wrap,
+#nav-sidebar .module.current-app .app-models-wrap,
+#nav-sidebar .module.app-expanded .app-models-wrap {
+    grid-template-rows: 1fr;
+}
+#nav-sidebar .module .app-models-wrap > table {
+    min-height: 0;
+    overflow: hidden;
+}
+#nav-sidebar .module .app-header .app-toggle {
+    display: block;
+    cursor: pointer;
+    user-select: none;
+}
+#nav-sidebar .module .app-header .app-toggle::after {
+    content: "▾";
+    float: right;
+    color: var(--primary);
+    font-size: 10px;
+    transition: transform 0.5s ease;
+}
+#nav-sidebar .module:hover .app-header .app-toggle::after,
+#nav-sidebar .module.current-app .app-header .app-toggle::after,
+#nav-sidebar .module.app-expanded .app-header .app-toggle::after {
+    transform: rotate(180deg);
+}
+#nav-sidebar .current-model {
+    background: transparent;
+}
+#nav-sidebar .current-model a {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-fg) !important;
+    border-left-color: var(--sidebar-active-fg);
+    font-weight: 600;
+}
+
+/* "Stock" now reuses the exact same module/app-header markup as a real
+   app group (see templates/admin/nav_sidebar.html), so it picks up the
+   #nav-sidebar .module / .current-app rules above automatically and needs
+   no styling of its own any more. */
+
+/* Modules (used elsewhere, e.g. app index pages) */
+.module {
+    border-radius: var(--admin-radius);
+    overflow: hidden;
+    box-shadow: var(--admin-shadow);
+    border: 1px solid var(--hairline-color);
+    background-color: var(--darkened-bg);
+}
+.module h2, .module caption, .inline-group h2 {
+    background: var(--darkened-bg);
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 10px 16px;
+    color: var(--body-loud-color);
+    border-bottom: 1px solid var(--hairline-color);
+}
+#content-main .module {
+    margin-bottom: 20px;
+}
+
+/* Buttons */
+.button, input[type=submit], input[type=button], .submit-row input, a.button {
+    border-radius: var(--admin-radius-sm);
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: transform 0.05s ease, background 0.15s ease;
+}
+.button:active, input[type=submit]:active {
+    transform: translateY(1px);
+}
+.object-tools a.addlink {
+    border-radius: var(--admin-radius-sm);
+    font-weight: 700;
+}
+
+/* Forms */
+.form-row input[type=text], .form-row input[type=number], .form-row input[type=email],
+.form-row input[type=password], .form-row textarea, .form-row select,
+input[type=text], input[type=number], input[type=email], input[type=password],
+textarea, select {
+    border-radius: var(--admin-radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--darkened-bg);
+    color: var(--body-fg);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input[type=text]:focus, input[type=number]:focus, input[type=email]:focus,
+input[type=password]:focus, textarea:focus, select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--selected-bg);
+    outline: none;
+}
+
+/* Results table */
+#changelist-filter, #changelist .results, .paginator {
+    border-radius: var(--admin-radius);
+}
+#changelist-filter {
+    border: 1px solid var(--hairline-color);
+    box-shadow: var(--admin-shadow);
+    background-color: var(--darkened-bg);
+}
+#changelist-filter h2 {
+    background: var(--darkened-bg);
+    border-radius: var(--admin-radius) var(--admin-radius) 0 0;
+    color: var(--body-loud-color);
+    font-family: var(--font-family-heading);
+}
+#result_list {
+    border-radius: var(--admin-radius);
+    overflow: hidden;
+    background: var(--body-bg);
+}
+#result_list thead th {
+    background: var(--darkened-bg);
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--body-quiet-color);
+}
+
+/* Login page */
+body.login {
+    background: var(--body-bg);
+}
+.login #container {
+    border-radius: 16px;
+    box-shadow: var(--admin-shadow);
+    overflow: hidden;
+    border: 1px solid var(--hairline-color);
+    max-width: 420px;
+    background-color: var(--darkened-bg);
+}
+.login #header {
+    background: transparent;
+    box-shadow: none;
+    justify-content: center;
+    padding-top: 28px;
+}
+.login .form-row {
+    padding: 10px 0;
+}
+.login .submit-row input {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+}
+
+/* Messages & Misc */
+ul.messagelist li {
+    border-radius: var(--admin-radius-sm);
+    font-weight: 500;
+}
+.selector-chosen h2, .selector-available h2,
+.calendar caption, .clockbox h2 {
+    border-radius: var(--admin-radius) var(--admin-radius) 0 0;
+    font-family: var(--font-family-heading);
+}
+
+/* Dashboard "recent actions" & app-index cards keep readable on dark */
+#content-related .module {
+    background: var(--darkened-bg);
+}
+
+/* ---- Language switch (mirrors the storefront's .lang-switch/.lang-btn) ---- */
+.lang-switch {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--admin-radius-sm);
+    overflow: hidden;
+    margin-left: 12px;
+    vertical-align: middle;
+}
+.lang-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--body-quiet-color);
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.lang-btn:not(:last-child) {
+    border-right: 1px solid var(--border-color);
+}
+.lang-btn:hover {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-fg);
+}
+.lang-btn.active {
+    background: var(--primary);
+    color: var(--button-fg);
+}
+
+/* ---- Dashboard: stat cards, overview grid ---------------------------- */
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin: 8px 0 20px;
+}
+
+.stat-card {
+    background: var(--darkened-bg);
+    border: 1px solid var(--hairline-color);
+    border-radius: var(--admin-radius);
+    box-shadow: var(--admin-shadow);
+    padding: 18px 20px;
+}
+.stat-card--accent {
+    background: var(--primary);
+}
+.stat-card--accent .stat-card__label,
+.stat-card--accent .stat-card__value {
+    color: var(--button-fg);
+}
+.stat-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.stat-card__label {
+    font-size: 13px;
+    color: var(--body-quiet-color);
+}
+.stat-card__icon {
+    font-size: 14px;
+    color: var(--primary);
+}
+.stat-card--accent .stat-card__icon {
+    background: rgba(255,255,255,0.25);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--button-fg);
+}
+.stat-card__value {
+    font-family: var(--font-family-heading);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--body-loud-color);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+@media (max-width: 900px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+.dashboard-card {
+    background: var(--darkened-bg);
+    border: 1px solid var(--hairline-color);
+    border-radius: var(--admin-radius);
+    box-shadow: var(--admin-shadow);
+    overflow: hidden;
+}
+.dashboard-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--hairline-color);
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    color: var(--body-loud-color);
+}
+.dashboard-card__cta {
+    background: var(--primary);
+    color: var(--button-fg);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 999px;
+    text-decoration: none;
+}
+.dashboard-card__body {
+    padding: 18px;
+}
+.dashboard-card__placeholder {
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--body-quiet-color);
+    font-size: 13px;
+    text-align: center;
+}
+.dashboard-card__donut {
+    text-align: center;
+}
+.donut-number {
+    font-family: var(--font-family-heading);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--primary);
+}
+.donut-list {
+    list-style: none;
+    margin: 12px 0 16px;
+    padding: 0;
+    text-align: left;
+    font-size: 13px;
+    color: var(--body-medium-color);
+}
+.donut-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--hairline-color);
+}
+.donut-list li:last-child {
+    border-bottom: none;
+}
+.dashboard-card__button {
+    display: inline-block;
+}
+
+/* bottom row: Recent actions on the left, Categories summary on the right.
+   Same 4 : 3 split and same breakpoint as .dashboard-charts so the two rows line up. */
+.dashboard-below {
+    display: grid;
+    grid-template-columns: 4fr 3fr;
+    gap: 16px;
+    align-items: start;
+}
+@media (max-width: 1200px) {
+    .dashboard-below { grid-template-columns: 1fr; }
+}
+.dashboard-below #recent-actions-module {
+    max-width: none;
+}
+
+/* ---- Dashboard: orders-per-day bar chart ------------------------------- */
+.bar-chart {
+    margin-bottom: 20px;
+}
+.bar-chart__total {
+    font-family: var(--font-family-primary);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--body-quiet-color);
+}
+.bar-chart__scroll { overflow-x: auto; }
+/* min-width is set per chart from the template (see _revenue_chart.html) */
+.bar-chart__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Daily and monthly revenue side by side, 4 : 3 */
+.dashboard-charts {
+    display: grid;
+    grid-template-columns: 4fr 3fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.dashboard-charts .bar-chart { margin-bottom: 0; }
+@media (max-width: 1200px) {
+    .dashboard-charts { grid-template-columns: 1fr; }
+    .dashboard-charts .bar-chart { margin-bottom: 0; }
+}
+.bar-chart__grid {
+    stroke: var(--hairline-color);
+    stroke-width: 1;
+}
+.bar-chart__axis {
+    fill: var(--body-quiet-color);
+    font-family: var(--font-family-primary);
+    font-size: 11px;
+}
+.bar-chart__year { font-weight: 700; }
+.bar-chart__value {
+    fill: var(--body-medium-color);
+    font-family: var(--font-family-primary);
+    font-size: 12px;
+    font-weight: 700;
+}
+.bar-chart__bar {
+    fill: var(--primary);
+    opacity: 0.75;
+    transition: opacity 0.15s;
+}
+.bar-chart__col--today .bar-chart__bar { opacity: 1; }
+.bar-chart__col:hover .bar-chart__bar { opacity: 1; fill: var(--secondary); }
+/* invisible full-height strip so even an empty day can show its tooltip */
+.bar-chart__hit { fill: transparent; }
+
+/* ============================================================
+   GLOBAL BACK BUTTON
+   ============================================================ */
+
+.global-back-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    min-height: 40px;
+    padding: 0 16px;
+
+    background: var(--darkened-bg);
+    color: var(--body-fg) !important;
+
+    border: 1px solid var(--border-color);
+    border-radius: var(--admin-radius-sm);
+
+    font-family: var(--font-family-primary);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+
+    text-decoration: none !important;
+
+    margin-bottom: 18px;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.1s ease,
+        box-shadow 0.15s ease;
+}
+
+.global-back-button:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--button-fg) !important;
+
+    text-decoration: none !important;
+}
+
+.global-back-button:active {
+    transform: translateY(1px);
+}
+
+.global-back-button:focus,
+.global-back-button:focus-visible {
+    outline: none;
+    color: var(--button-fg) !important;
+
+    box-shadow: 0 0 0 3px var(--selected-bg);
+}
+
+.global-back-button-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.global-back-button-text {
+    line-height: 1;
+}
+
+#content h1::first-letter {
+    text-transform: uppercase;
+}
+
+/* ============================================================
+   UI/UX REFINEMENTS — цэвэрхэн, эвтэйхэн харагдуулах нэмэлт
+   тохиргоо. Дээрх дүрмүүдийг ЗАСАЖ БИШ, зөвхөн НЭМЖ байна тул
+   одоо байгаа зан үйл (popup, sidebar гэх мэт) эвдэхгүй.
+   ============================================================ */
+
+/* Уншихад тааламжтай болгох — жижиг сайжруулалт */
+body {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Content хэсэгт илүү амьсгалах зай өгнө */
+#content {
+    padding: 24px 28px 40px;
+}
+@media (max-width: 767px) {
+    #content { padding: 16px 16px 32px; }
+}
+
+/* Сүүдэр (shadow) хэт хүнд бус, зөөлөн болгоно */
+.module, #changelist-filter, .dashboard-card, .stat-card, .login #container {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03);
+}
+html[data-theme="dark"] .module,
+html[data-theme="dark"] #changelist-filter,
+html[data-theme="dark"] .dashboard-card,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .login #container {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Карт дээр hover хийхэд бага зэрэг "лифт" эффект — зөөлөн, түргэн биш */
+.stat-card, .dashboard-card {
+    transition: box-shadow 0.2s ease;
+}
+.stat-card:hover, .dashboard-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] .stat-card:hover,
+html[data-theme="dark"] .dashboard-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+/* Dashboard хэсгүүдийн хооронд илүү сайн зай (vertical rhythm) */
+.dashboard-stats { margin: 4px 0 24px; }
+.dashboard-grid { margin-bottom: 24px; }
+
+/* "Тун удахгүй ирнэ" мэтийн хоосон талбарыг илүү зөөлөн харагдуулна */
+.dashboard-card__placeholder {
+    flex-direction: column;
+    gap: 8px;
+    font-style: italic;
+}
+
+/* Жагсаалтын хүснэгт: заримдаа-цагаан мөр + hover тод, харагдац
+   хөнгөн болгоно */
+#result_list tbody tr:nth-child(even) {
+    background: var(--darkened-bg);
+}
+#result_list tbody tr:hover {
+    background: var(--selected-row) !important;
+}
+#result_list td, #result_list th {
+    padding: 10px 14px;
+}
+#result_list thead th {
+    padding: 12px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* Шүүлтүүр (filter) хэсэг: жагсаалт нягт, идэвхтэй сонголт тодорхой */
+#changelist-filter ul { margin: 0; padding: 0 0 12px; }
+#changelist-filter li { padding: 2px 16px; }
+#changelist-filter li.selected a {
+    color: var(--sidebar-active-fg);
+    font-weight: 700;
+}
+
+/* Breadcrumbs: илүү намуухан, хөнгөн */
+div.breadcrumbs {
+    font-size: 12px;
+    padding: 8px 24px;
+}
+
+/* Форм: талбар бүрийг тодорхой ялгаж, help текстийг намуухан болгоно */
+.form-row {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--hairline-color);
+}
+.form-row:last-child { border-bottom: none; }
+.help, p.help, .form-row .help {
+    color: var(--body-quiet-color);
+    font-size: 12px;
+    font-style: normal;
+    margin-top: 4px;
+}
+label {
+    color: var(--body-medium-color);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* Fieldset-үүд хайрцаг-доторх-хайрцаг мэт биш, цэвэрхэн карт шиг */
+fieldset.module {
+    margin-bottom: 16px;
+}
+fieldset.module h2 {
+    font-size: 13px;
+}
+
+/* Мэдэгдэл (success/warning/error): хатуу өнгөт блок биш, зүүн
+   талдаа өнгөт зурвастай, тайван харагдацтай болгоно */
+ul.messagelist li {
+    border-left: 4px solid var(--primary);
+    background: var(--darkened-bg) !important;
+    background-image: none !important;
+    color: var(--body-fg);
+    padding: 12px 16px;
+    box-shadow: none;
+}
+ul.messagelist li.success {
+    border-left-color: #2e9e5b;
+    background-image: none !important;
+}
+ul.messagelist li.warning {
+    border-left-color: #d69e2e;
+    background-image: none !important;
+}
+ul.messagelist li.error {
+    border-left-color: var(--error-fg);
+    background-image: none !important;
+}
+.paginator a:hover {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-fg);
+}
+
+/* Бүх интерактив элементэд ижил төрлийн, browser-ийн цэнхэр бус
+   өөрсдийн өнгөт focus ring */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, .button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--selected-bg);
+}
+
+/* Нимгэн, темийн өнгөтэй таарсан scrollbar (Chrome/Edge/Safari) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--body-quiet-color); }
+* { scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+
+/* Object-tools (Нэмэх товч гэх мэт) гарчигтайгаа хол зайтай болно */
+.object-tools { margin-top: 4px; margin-bottom: 12px; }
+
+/* Нэвтрэх хуудас: илүү тайван зай */
+.login #content { padding: 8px 32px 24px; }
+.login .form-row label { display: block; margin-bottom: 6px; }
+
+/* ============================================================
+   FORM FIELD VISIBILITY — талбарууд (User select, Name, Phone,
+   Address гэх мэт) хүрээлж буй карттайгаа ижил өнгөтэй байсан тул
+   хаана бичихээ мэдэгдэхгүй, "живсэн" харагдаж байсныг засна.
+   Талбар бүрд өөрийн гэсэн background өнгө + сүүдэр өгснөөр
+   картаас тод ялгарч харагдана. Зөвхөн НЭМЭЛТ тохиргоо, өмнөх
+   дүрмүүдийг дарж бичиж байгаа тул бусад зүйлд нөлөөлөхгүй.
+   ============================================================ */
+:root, html[data-theme="light"] {
+    --field-bg: #ffffff;
+    --field-border: #d3cdbf;
+}
+html[data-theme="dark"] {
+    --field-bg: #1c1c1c;
+    --field-border: #3a3a3a;
+}
+
+.form-row input[type=text], .form-row input[type=number], .form-row input[type=email],
+.form-row input[type=password], .form-row textarea, .form-row select,
+input[type=text], input[type=number], input[type=email], input[type=password],
+textarea, select,
+.related-widget-wrapper select {
+    background-color: var(--field-bg) !important;
+    border: 1px solid var(--field-border) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] input[type=text],
+html[data-theme="dark"] input[type=number],
+html[data-theme="dark"] input[type=email],
+html[data-theme="dark"] input[type=password],
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] .related-widget-wrapper select {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Related-widget товчнууд (харандаа/+/X/нүд) талбартайгаа зэрэгцэн
+   эвсэлдэж харагдахын тулд бага зэрэг доор нь зай өгнө */
+.related-widget-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ============================================================
+   PROFILE DROPDOWN (header, top right)
+   Same design as the storefront navbar's profile menu
+   (store/templates/navbar.html + styles.css / nav-theme.css):
+   outlined 38px button (person-circle icon + username + caret) and a
+   rounded menu of icon rows. The colours below are the storefront's own
+   --shop-* values, light and dark.
+   ============================================================ */
+.admin-user-area {
+    /* light theme (storefront [data-theme="light"]) */
+    --pm-card: #ffffff;
+    --pm-border: #e8e5df;
+    --pm-muted: #777777;
+    --pm-btn-border: #dddbd6;
+    --pm-btn-text: #444444;
+    --pm-btn-hover-bg: #f0ede7;
+    --pm-btn-hover-text: #1a1a1a;
+    --pm-item-hover-bg: #f5f3ee;
+    --pm-item-hover-text: #1a1a1a;
+    --pm-shadow: rgba(0, 0, 0, 0.12);
+    --pm-ease: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;          /* greeting + button sit on the right, before the language switch */
+}
+html[data-theme="dark"] .admin-user-area {
+    /* dark theme (storefront default) */
+    --pm-card: #181818;
+    --pm-border: #2a2a2a;
+    --pm-muted: #888888;
+    --pm-btn-border: #2a2a2a;
+    --pm-btn-text: #f5f3ee;
+    --pm-btn-hover-bg: #2a2a2a;
+    --pm-btn-hover-text: #f5f3ee;
+    --pm-item-hover-bg: #2a2a2a;
+    --pm-item-hover-text: #f5f3ee;
+    --pm-shadow: rgba(0, 0, 0, 0.5);
+}
+
+/* Same look as Django's original greeting: small, light, uppercase, grey. */
+.admin-welcome {
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--body-quiet-color);
+    white-space: nowrap;
+}
+
+.admin-profile {
+    position: relative;
+    display: inline-block;
+}
+
+/* --- the button (storefront: .btn .btn-outline-dark .dropdown-toggle) --- */
+.admin-profile-toggle {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 38px;
+    max-width: 180px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--pm-btn-text);
+    background: transparent;
+    border: 1px solid var(--pm-btn-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--pm-ease);
+}
+.admin-profile-toggle:hover,
+.admin-profile.open .admin-profile-toggle {
+    background: var(--pm-btn-hover-bg);
+    color: var(--pm-btn-hover-text);
+    transform: translateY(-1px);
+}
+.admin-profile-toggle > .bi {
+    margin-right: 0.25rem;
+    flex: none;
+}
+.admin-profile-name {
+    display: inline-block;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* Bootstrap's dropdown caret */
+.admin-profile-toggle::after {
+    content: "";
+    display: inline-block;
+    margin-left: 0.5rem;
+    border-top: 0.3em solid;
+    border-right: 0.3em solid transparent;
+    border-bottom: 0;
+    border-left: 0.3em solid transparent;
+}
+
+/* --- the menu (storefront: .dropdown-menu .dropdown-menu-end .profile-menu) --- */
+.admin-profile-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 1200;              /* above the sidebar (1000) and its backdrop (900) */
+    box-sizing: border-box;      /* the storefront (Bootstrap) sizes everything border-box */
+    min-width: 200px;
+    margin: 2px 0 0;
+    padding: 8px;
+    list-style: none;
+    text-align: left;
+    background: var(--pm-card);
+    border: 1px solid var(--pm-border);
+    border-radius: 8px;
+    box-shadow: 0 20px 40px var(--pm-shadow);
+}
+.admin-profile.open .admin-profile-menu {
+    display: block;
+}
+.admin-profile-menu li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.admin-profile-divider {
+    box-sizing: border-box;
+    height: 0;
+    margin: 0.35rem 0 !important;
+    overflow: hidden;
+    border-top: 1px solid var(--pm-border);
+}
+.admin-profile-logout-form {
+    margin: 0;
+    padding: 0;
+}
+
+/* --- menu rows (storefront: .dropdown-item). The "#header" prefix beats
+   Django's "#header a:link" colours and the stock .theme-toggle styles. --- */
+#header .admin-profile-menu .admin-profile-item {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.85rem;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+    text-align: left;
+    text-decoration: none;
+    text-transform: none;
+    white-space: nowrap;
+    color: var(--pm-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    vertical-align: baseline;
+    transition: all var(--pm-ease);
+}
+#header .admin-profile-menu .admin-profile-item:hover,
+#header .admin-profile-menu .admin-profile-item:focus-visible {
+    background: var(--pm-item-hover-bg);
+    color: var(--pm-item-hover-text);
+    outline: none;
+}
+.admin-profile-icon {
+    display: inline-flex;
+    flex: none;
+    width: 1em;
+    height: 1em;
+}
+/* stock ".theme-toggle svg" hides svgs at 1.5rem - reset it for our icons */
+#header .admin-profile-menu svg,
+#header .admin-profile-toggle svg {
+    display: block;
+    width: 1em;
+    height: 1em;
+}
+
+/* Theme row shows the mode you would switch TO (same as the storefront):
+   dark now -> sun + "Light mode";  light now -> moon + "Dark mode". */
+html[data-theme="dark"] .admin-profile-menu .admin-when-light,
+html:not([data-theme="dark"]) .admin-profile-menu .admin-when-dark {
+    display: none;
+}
+
+/* The storefront navbar makes the language switch and the profile button the
+   same 38px height. Do the same here - only when the profile button is
+   present, so the centred login-page switch is left alone. */
+.admin-user-area ~ .admin-lang-switch {
+    box-sizing: border-box;
+    height: 38px;
+    align-items: stretch;
+}
+.admin-user-area ~ .admin-lang-switch .admin-lang-btn {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 100%;
+}
+
+/* Profile dropdown: fade / slide in and out over 0.5 s */
+.admin-profile-menu {
+    display: block;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity .5s ease, transform .5s ease, visibility 0s linear .5s;
+}
+.admin-profile.open .admin-profile-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: opacity .5s ease, transform .5s ease, visibility 0s;
+}
+
+/* Django's built-in date / time pickers and the autocomplete dropdown pop in over 0.5 s too */
+@keyframes bshop-pop-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: none; }
+}
+.calendarbox,
+.clockbox,
+.select2-container--open .select2-dropdown {
+    animation: bshop-pop-in .5s ease;
+}
+
+/* ==========================================================================
+   Pager under every admin list  (templates/admin/bshop_pager.html)
+   Rounded boxes, current page filled with the admin's main colour
+   (--primary: gold in light mode, yellow in dark mode), "Үр дүн: 1 - 10 / 96"
+   and a rows-per-page dropdown underneath.
+   ========================================================================== */
+.bshop-pager {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    /* centred under the table: the block is only as wide as its content and
+       auto side-margins put it in the middle of the page */
+    width: fit-content;
+    max-width: 100%;
+    margin: 22px auto 10px;
+    color: var(--body-fg);
+}
+
+.bshop-pager .bp-pages {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    white-space: normal;
+}
+
+.bshop-pager .bp-pages li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bshop-pager .bp-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--body-fg);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none !important;
+    box-shadow: none;
+    transition: transform .2s ease, border-color .2s ease, color .2s ease, background .2s ease;
+}
+
+.bshop-pager a.bp-btn:hover,
+.bshop-pager a.bp-btn:focus-visible {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: transparent;
+    transform: translateY(-2px);
+}
+
+.bshop-pager .bp-btn.is-current {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+    cursor: default;
+}
+
+.bshop-pager .bp-btn.is-disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.bshop-pager .bp-gap {
+    letter-spacing: 2px;
+    cursor: default;
+}
+
+.bshop-pager .bp-arrow svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.bshop-pager .bp-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 32px;
+    width: 100%;
+}
+
+.bshop-pager .bp-results {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.bshop-pager .bp-size {
+    position: relative;
+    display: inline-block;
+    color: var(--body-fg);
+}
+
+/* the little ▼ - drawn with borders so it follows the theme colour */
+.bshop-pager .bp-size::after {
+    content: "";
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    margin-top: -3px;
+    border: 5px solid transparent;
+    border-top-color: currentColor;
+    border-bottom-width: 0;
+    pointer-events: none;
+}
+
+.bshop-pager .bp-size select {
+    appearance: none;
+    -webkit-appearance: none;
+    min-width: 84px;
+    height: 42px;
+    padding: 0 40px 0 18px;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    background: var(--darkened-bg) !important;
+    color: var(--body-fg);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none !important;
+    transition: border-color .2s ease;
+}
+
+.bshop-pager .bp-size select:hover,
+.bshop-pager .bp-size select:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+/* Inside the edit popup (iframe, ?_popup=1) there is nowhere to go "back" to;
+   the popup is closed with the x in its corner instead. */
+body.popup .global-back-button { display: none !important; }
+
+/* Floating "Save" for editable list columns (stock, active ...).
+   position:fixed = it takes no room in the page, so nothing moves when it appears;
+   it only fades / slides in once a field has been edited (static/admin/js/save-bar.js). */
+.bshop-save-bar {
+    position: fixed;
+    right: 28px;
+    bottom: 24px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 18px;
+    background: var(--body-bg);
+    border: 1px solid var(--hairline-color);
+    border-radius: 999px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(14px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
+}
+.bshop-save-bar.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    transition: opacity .2s ease, transform .2s ease, visibility 0s;
+}
+.bshop-save-bar .bsb-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--body-quiet-color);
+    white-space: nowrap;
+}
+.bshop-save-bar .bsb-cancel {
+    border: 0;
+    background: transparent;
+    color: var(--body-fg);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 999px;
+}
+.bshop-save-bar .bsb-cancel:hover { background: var(--darkened-bg); }
+.bshop-save-bar .bsb-save {
+    margin: 0;
+    padding: 9px 22px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+@media (max-width: 600px) {
+    .bshop-save-bar { left: 12px; right: 12px; bottom: 12px; justify-content: space-between; }
+    .bshop-save-bar .bsb-text { display: none; }
+}

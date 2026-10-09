@@ -1,0 +1,123 @@
+{% extends 'layout.html' %}
+{% load i18n_extras %}
+{% load humanize %}
+{% load static %}
+
+{{ product.price|floatformat:0|intcomma }}₮
+
+{% block content %}
+<!-- Header-->
+<header class="bg-dark py-5">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="text-center text-white">
+            <h1 class="display-4 fw-bolder">{{ category.name|category_name:LANG }}</h1>
+            <p class="lead fw-normal text-white-50 mb-0">{{ T.category_subtitle }}</p>
+        </div>
+    </div>
+</header>
+
+<!-- Section-->
+<section class="py-5">
+    <div class="container px-4 px-lg-5 mt-5">
+
+        {% if user.is_authenticated and user.is_staff %}
+        <div class="d-flex justify-content-end mb-4">
+            <button class="btn-add-product" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="bi bi-plus-lg me-2"></i>{{ T.add_product_btn }}
+            </button>
+        </div>
+        {% endif %}
+
+        {% if products %}
+            {% include 'includes/product_list.html' with products=products %}
+        {% endif %}
+
+        {% if not products %}
+        <div class="text-center py-5 empty-state">
+            <div class="empty-icon"><i class="bi bi-box-seam"></i></div>
+            <h3>{{ T.empty_products_title }}</h3>
+            <p>{{ T.empty_products_text }}</p>
+            {% if user.is_authenticated and user.is_staff %}
+            <button class="btn-add-product mt-3" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="bi bi-plus-lg me-2"></i>{{ T.add_first_product_btn }}
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+</section>
+
+{% if user.is_authenticated and user.is_staff %}
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content product-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProductModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>{{ T.modal_add_product_title }}
+                </h5>
+                <button type="button" class="btn-close-modal" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{% url 'add_product' category.name %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ T.form_name_label }}</label>
+                            {{ product_form.name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ T.form_category_label }}</label>
+                            {{ product_form.category }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ T.form_price_label }}</label>
+                            {{ product_form.price }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ T.form_image_label }}</label>
+                            {{ product_form.image }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ T.form_description_label }}</label>
+                            {{ product_form.description }}
+                        </div>
+                        <div class="col-12">
+                            <div class="sale-toggle-wrap">
+                                <label class="sale-toggle-label">
+                                    {{ product_form.is_sale }}
+                                    <span>{{ T.sale_checkbox_label }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="sale-price-wrap" style="display:none;">
+                            <label class="form-label">{{ T.sale_price_label }}</label>
+                            {{ product_form.sale_price }}
+                        </div>
+                    </div>
+                    <div class="modal-footer-btns mt-4">
+                        <button type="button" class="btn-cancel" data-bs-dismiss="modal">{{ T.cancel_btn }}</button>
+                        <button type="submit" class="btn-save">
+                            <i class="bi bi-check-lg me-1"></i>{{ T.save_btn }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    var isSaleCheck = document.getElementById('id_is_sale');
+    var salePriceWrap = document.getElementById('sale-price-wrap');
+    if (isSaleCheck) {
+        isSaleCheck.addEventListener('change', function() {
+            salePriceWrap.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+</script>
+{% endblock %}

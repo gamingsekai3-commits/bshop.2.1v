@@ -1,0 +1,24 @@
+{% load i18n admin_urls %}
+<div class="submit-row">
+{% block submit-row %}
+{% if show_save %}<input type="submit" value="{% translate 'Save' %}" class="default" name="_save">{% endif %}
+{% if show_save_as_new %}<input type="submit" value="{% translate 'Save as new' %}" name="_saveasnew">{% endif %}
+{% if show_save_and_add_another %}<input type="submit" value="{% translate 'Save and add another' %}" name="_addanother">{% endif %}
+{% if show_save_and_continue %}<input type="submit" value="{% if can_change %}{% translate 'Save and continue editing' %}{% else %}{% translate 'Save and view' %}{% endif %}" name="_continue">{% endif %}
+{% if show_close %}
+    {% url opts|admin_urlname:'changelist' as changelist_url %}
+    <a role="button" href="{% add_preserved_filters changelist_url %}" class="closelink">{% translate 'Close' %}</a>
+{% endif %}
+{% comment %}
+Stock Django hides the Delete button whenever _popup=1 is set (the flag our
+row-edit popup uses to render the bare form). Inside the popup we still want
+one-click delete, so show it whenever the permission exists. (submit_row
+reads its own "show_delete" flag with context.get() but never exposes it to
+the template, so the default-True case is simply the two checks below.)
+{% endcomment %}
+{% if has_delete_permission and change %}
+    {% url opts|admin_urlname:'delete' original.pk|admin_urlquote as delete_url %}
+    <a role="button" href="{% add_preserved_filters delete_url %}" class="deletelink">{% translate "Delete" %}</a>
+{% endif %}
+{% endblock %}
+</div>

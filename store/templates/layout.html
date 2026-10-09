@@ -1,0 +1,124 @@
+{% load static %}
+{% load humanize %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="{{ LANG }}" data-theme="dark">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <title>{{ T.site_title }}</title>
+        <link rel="icon" type="image/x-icon" href="{% static 'assets/favicon.ico' %}" />
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+        <link href="{% static 'css/styles.css' %}" rel="stylesheet" />
+        <link href="{% static 'css/nav-theme.css' %}?v=2" rel="stylesheet" />
+        <link href="{% static 'css/page-loader.css' %}" rel="stylesheet" />
+        <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
+        <script>
+            (function() {
+                var t = localStorage.getItem('eshop-theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', t);
+            })();
+        </script>
+    </head>
+    <body class="d-flex flex-column min-vh-100">
+        <div id="page-loading-overlay">
+    <div class="page-loading-spinner"></div>
+        </div>
+        {% include 'navbar.html' %}
+        {% if messages %}
+            <div class="position-fixed bottom-0 start-0 p-3" style="z-index: 11">
+                {% for message in messages %}
+                <div class="toast align-items-center text-bg-primary border-0 show mb-2" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">{{ message }}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+        <footer class="mt-auto bg-dark text-white text-center py-3">
+            <div class="container"><p class="m-0 text-center text-white">Copyright &copy; {{ T.footer_text }} 2024</p></div>
+        </footer>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="{% static 'js/scripts.js' %}"></script>
+        <script src="{% static 'js/page-loader.js' %}"></script>
+                <script>
+            $(document).on('click', '#add-cart', function(e) {
+                e.preventDefault();
+                var $btn = $(this);
+                $btn.prop('disabled', true);
+                var selectedOptions = {};
+                $('#options-picker .option-select').each(function () {
+                    var type = $(this).attr('data-option-type');
+                    var value = $(this).val();
+                    if (type && value) { selectedOptions[type] = value; }
+                });
+                $.ajax({
+                    type: 'POST',
+                    url: "{% url 'cart_add' %}",
+                    data: {
+                        'product_id': $btn.val(),
+                        'product_qty': $('#qty-cart').val(),
+                        'options': JSON.stringify(selectedOptions),
+                        'csrfmiddlewaretoken': '{{ csrf_token }}',
+                        'action': 'post',
+                    },
+                    success: function(json) {
+                        document.getElementById('cart_quantity').textContent = json.cart_qty;
+                        var $feedback = $('#cart-add-feedback');
+                        var $warning = $('#cart-add-warning');
+                        $btn.prop('disabled', false);
+                        if (json.warning) {
+                            $warning.text(json.message).stop(true, true).show();
+                            setTimeout(function() { $warning.fadeOut(); }, 4000);
+                        } else {
+                            $feedback.stop(true, true).show();
+                            setTimeout(function() { $feedback.fadeOut(); }, 2000);
+                        }
+                    },
+                    error: function(xhr, errmsg, err) {
+                        console.log(xhr.status + ": " + xhr.responseText);
+                        $btn.prop('disabled', false);
+                        var $warning = $('#cart-add-warning');
+                        var message = 'Алдаа гарлаа';
+                        try {
+                            var resp = JSON.parse(xhr.responseText);
+                            if (resp.message) { message = resp.message; }
+                        } catch (e) {}
+                        $warning.text(message).stop(true, true).show();
+                        setTimeout(function() { $warning.fadeOut(); }, 4000);
+                    }
+                });
+            });
+        </script>
+        
+        <script>
+            function toggleTheme() {
+                var html = document.documentElement;
+                var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', next);
+                localStorage.setItem('eshop-theme', next);
+                updateThemeIcon(next);
+            }
+function updateThemeIcon(theme) {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    var iconWrap = btn.querySelector('.theme-toggle-icon');
+    var textWrap = btn.querySelector('.theme-toggle-text');
+    var iconHtml = theme === 'dark' ? '<i class="bi bi-sun-fill"></i>' : '<i class="bi bi-moon-fill"></i>';
+    if (iconWrap && textWrap) {
+        iconWrap.innerHTML = iconHtml;
+        textWrap.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+    } else {
+        btn.innerHTML = iconHtml;
+    }
+}
+            document.addEventListener('DOMContentLoaded', function() {
+                updateThemeIcon(localStorage.getItem('eshop-theme') || 'dark');
+            });
+        </script>
+    </body>
+</html>
