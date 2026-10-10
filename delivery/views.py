@@ -1,20 +1,18 @@
 from functools import wraps
+from urllib.parse import urlencode
 
 from django.contrib import messages
-from django.contrib.auth import login, logout
+from django.contrib.auth import logout
 from django.db.models import Count, Q
 from django.http import Http404, JsonResponse
 from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from store.workspaces import landing_redirect
-
 from . import services
-from .forms import DriverLoginForm, FailDeliveryForm
+from .forms import FailDeliveryForm
 from .models import Delivery, Driver
 
 
@@ -24,36 +22,21 @@ def driver_required(view):
     @wraps(view)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect(f"{reverse('delivery:login')}?next={request.path}")
+            return redirect(f"{reverse('work_login')}?{urlencode({'next': request.get_full_path()})}")
         driver = Driver.objects.filter(user=request.user, is_active=True).select_related('user').first()
         if driver is None:
             messages.error(request, 'Энэ бүртгэл хүргэгчийн эрхгүй байна.')
-            return redirect('delivery:login')
+            return redirect('work_login')
         request.driver = driver
         return view(request, *args, **kwargs)
 
     return wrapper
 
 
-def login_view(request):
-    if request.user.is_authenticated and Driver.objects.filter(user=request.user, is_active=True).exists():
-        return redirect('delivery:board')
-
-    form = DriverLoginForm(request, data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        login(request, form.get_user())
-        next_url = request.POST.get('next') or request.GET.get('next') or ''
-        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-            return redirect(next_url)
-        # A person who is also an admin (two positions) picks which site to open.
-        return landing_redirect(form.get_user())
-    return render(request, 'delivery/login.html', {'form': form, 'next': request.GET.get('next', '')})
-
-
 @require_POST
 def logout_view(request):
     logout(request)
-    return redirect('delivery:login')
+    return redirect('work_login')
 
 
 @driver_required

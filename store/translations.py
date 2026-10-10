@@ -375,6 +375,7 @@ TRANSLATIONS = {
         'rd_status_delivered': 'Хүргэгдсэн',
         'rd_status_cancelled': 'Цуцлагдсан',
         'admin_report_note': 'Цуцлагдсан захиалгыг тооцоогүй.',
+        'admin_report_orders_note': 'Зөвхөн хүргэгдсэн захиалгыг хүргэгдсэн өдрөөр нь тооцсон. Цуцлагдсан захиалгыг тооцоогүй.',
         'admin_report_buyers': 'Худалдан авсан',
         'admin_report_spent': 'Худалдан авсан дүн',
         'admin_report_username': 'Нэвтрэх нэр',
@@ -582,6 +583,15 @@ TRANSLATIONS = {
         'ws_switch': 'Сайт солих',
         'ws_positions_help': 'Хэд хэдэн албан тушаал сонгож болно. Админ / Оператор нь админ сайтад, Хүргэгч нь хүргэгчийн сайтад орох эрх олгоно.',
         'ws_positions_required': 'Дор хаяж нэг албан тушаал сонгоно уу.',
+
+        # Work Web (login for admin / driver / employee)
+        'work_title': 'Ажилтны нэвтрэлт',
+        'work_subtitle': 'Админ, хүргэгч болон ажилтнуудад зориулсан Work Web',
+        'work_login_btn': 'Work Web-д нэвтрэх',
+        'work_switch_to_work': 'Work Web нэвтрэлт рүү шилжих',
+        'work_switch_to_customer': 'Худалдан авагчийн нэвтрэлт рүү буцах',
+        'msg_work_only': 'Админ, хүргэгч болон ажилтнууд энд нэвтэрч болохгүй. Work Web нэвтрэлтийг ашиглана уу.',
+        'msg_customer_only': 'Энэ бүртгэл ажилтны эрхгүй байна. Худалдан авагчийн нэвтрэлтийг ашиглана уу.',
     },
 
     'en': {
@@ -881,6 +891,7 @@ TRANSLATIONS = {
         'rd_status_delivered': 'Delivered',
         'rd_status_cancelled': 'Cancelled',
         'admin_report_note': 'Cancelled orders are not counted.',
+        'admin_report_orders_note': 'Only delivered orders are counted, on the day they were delivered. Cancelled orders are not counted.',
         'admin_report_buyers': 'Customers who ordered',
         'admin_report_spent': 'Total spent',
         'admin_report_username': 'Username',
@@ -1087,6 +1098,15 @@ TRANSLATIONS = {
         'ws_switch': 'Switch site',
         'ws_positions_help': 'You can pick several positions. Admin / Operator give access to the admin site, Driver gives access to the driver site.',
         'ws_positions_required': 'Select at least one position.',
+
+        # Work Web (login for admin / driver / employee)
+        'work_title': 'Staff login',
+        'work_subtitle': 'Work Web for admins, drivers and employees',
+        'work_login_btn': 'Log in to Work Web',
+        'work_switch_to_work': 'Switch to Work Web login',
+        'work_switch_to_customer': 'Back to customer login',
+        'msg_work_only': 'Admins, drivers and employees cannot log in here. Please use the Work Web login.',
+        'msg_customer_only': 'This account has no staff access. Please use the customer login.',
     },
 }
 

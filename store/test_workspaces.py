@@ -150,58 +150,90 @@ class LoginRoutingTests(TestCase):
         cls.both = appoint('both', [ADMIN, DRIVER])
 
     def login(self, where, username, **extra):
-        data = {'username': username, 'password': PASSWORD}
-        if where == 'admin:login':
-            # the admin login form carries this hidden field, so a browser always sends it
-            data['next'] = reverse('admin:index')
-        return self.client.post(reverse(where), {**data, **extra})
+        return self.client.post(reverse(where), {'username': username, 'password': PASSWORD, **extra})
 
-    # --- shop login: customers unchanged ---------------------------------
+    def signed_in(self):
+        return '_auth_user_id' in self.client.session
+
+    # --- customer login: customers only ----------------------------------
     def test_customer_login_is_unchanged(self):
         resp = self.login('login', 'cust')
         self.assertRedirects(resp, reverse('home'), fetch_redirect_response=False)
+        self.assertTrue(self.signed_in())
 
-    def test_shop_login_sends_single_role_staff_to_their_site(self):
-        self.assertRedirects(self.login('login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
-        self.client.logout()
-        self.assertRedirects(self.login('login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
+    def test_customer_login_refuses_admin_driver_and_both(self):
+        for name in ('adm', 'drv', 'both'):
+            resp = self.login('login', name)
+            self.assertRedirects(resp, reverse('login'), fetch_redirect_response=False)
+            self.assertFalse(self.signed_in(), name)
 
-    def test_shop_login_two_positions_goes_to_chooser(self):
-        self.assertRedirects(self.login('login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
+    def test_customer_login_refuses_label_only_employee(self):
+        # an employee whose position is only a label: no admin / driver site
+        user = User.objects.create_user('clerk', password=PASSWORD)
+        Employee.objects.create(user=user)
+        resp = self.login('login', 'clerk')
+        self.assertRedirects(resp, reverse('login'), fetch_redirect_response=False)
+        self.assertFalse(self.signed_in())
 
-    # --- admin login -----------------------------------------------------
-    def test_admin_login_single_role_goes_to_admin(self):
-        self.assertRedirects(self.login('admin:login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
+    def test_customer_login_page_links_to_work_web(self):
+        self.assertContains(self.client.get(reverse('login')), reverse('work_login'))
 
-    def test_admin_login_two_positions_goes_to_chooser(self):
-        self.assertRedirects(self.login('admin:login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
-
-    def test_admin_login_keeps_deep_link(self):
-        target = reverse('admin:store_product_changelist')
-        resp = self.login('admin:login', 'both', next=target)
-        self.assertRedirects(resp, target, fetch_redirect_response=False)
-
-    def test_driver_cannot_use_admin_login(self):
-        resp = self.login('admin:login', 'drv')
-        self.assertEqual(resp.status_code, 200)               # form shown again, not signed in
-        self.assertNotIn('_auth_user_id', self.client.session)
-
-    # --- driver login ----------------------------------------------------
-    def test_driver_login_single_role_goes_to_board(self):
-        self.assertRedirects(self.login('delivery:login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
-
-    def test_driver_login_two_positions_goes_to_chooser(self):
-        self.assertRedirects(self.login('delivery:login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
-
-    def test_driver_login_keeps_next(self):
-        target = reverse('delivery:deliveries')
-        resp = self.login('delivery:login', 'both', next=target)
-        self.assertRedirects(resp, target, fetch_redirect_response=False)
-
-    def test_admin_cannot_use_driver_login(self):
-        resp = self.login('delivery:login', 'adm')
+    # --- Work Web login --------------------------------------------------
+    def test_work_login_page_renders_and_links_back(self):
+        resp = self.client.get(reverse('work_login'))
         self.assertEqual(resp.status_code, 200)
-        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertContains(resp, reverse('login'))
+
+    def test_work_login_single_role_goes_to_their_site(self):
+        self.assertRedirects(self.login('work_login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
+        self.client.logout()
+        self.assertRedirects(self.login('work_login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
+
+    def test_work_login_two_positions_goes_to_chooser(self):
+        self.assertRedirects(self.login('work_login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
+
+    def test_work_login_keeps_deep_link(self):
+        target = reverse('admin:store_product_changelist')
+        resp = self.login('work_login', 'both', next=target)
+        self.assertRedirects(resp, target, fetch_redirect_response=False)
+
+    def test_work_login_ignores_offsite_next(self):
+        resp = self.login('work_login', 'adm', next='https://evil.example/steal')
+        self.assertRedirects(resp, reverse('admin:index'), fetch_redirect_response=False)
+
+    def test_work_login_refuses_customers(self):
+        resp = self.login('work_login', 'cust')
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(self.signed_in())
+
+    def test_work_login_wrong_password(self):
+        resp = self.client.post(reverse('work_login'), {'username': 'adm', 'password': 'nope'})
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(self.signed_in())
+
+    def test_work_login_when_already_signed_in_skips_the_form(self):
+        self.client.force_login(self.admin)
+        self.assertRedirects(self.client.get(reverse('work_login')), reverse('admin:index'),
+                             fetch_redirect_response=False)
+
+    # --- the old separate logins are gone / forward to Work Web ----------
+    def test_driver_login_page_no_longer_exists(self):
+        self.assertEqual(self.client.get('/delivery/login/').status_code, 404)
+
+    def test_admin_login_redirects_to_work_web(self):
+        resp = self.client.get(reverse('admin:login'))
+        self.assertRedirects(resp, reverse('work_login'), fetch_redirect_response=False)
+
+    def test_admin_page_when_signed_out_ends_up_on_work_web_with_deep_link(self):
+        target = reverse('admin:store_product_changelist')
+        resp = self.client.get(target, follow=True)
+        self.assertEqual(resp.redirect_chain[-1][0], f"{reverse('work_login')}?next={target.replace('/', '%2F')}")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_driver_cannot_use_admin_site(self):
+        self.client.force_login(self.driver)
+        resp = self.client.get(reverse('admin:index'))
+        self.assertEqual(resp.status_code, 302)           # not let in
 
     # --- chooser ---------------------------------------------------------
     def test_chooser_lists_both_sites(self):
@@ -224,7 +256,7 @@ class LoginRoutingTests(TestCase):
     def test_chooser_needs_login(self):
         resp = self.client.get(reverse('choose_workspace'))
         self.assertEqual(resp.status_code, 302)
-        self.assertIn(reverse('login'), resp['Location'])
+        self.assertIn(reverse('work_login'), resp['Location'])
 
     # --- one session, two sites: switching needs no second login ---------
     def test_one_login_opens_both_sites(self):
@@ -247,7 +279,7 @@ class LoginRoutingTests(TestCase):
         self.client.force_login(User.objects.get(pk=self.both.pk))
         self.assertEqual(self.client.get(reverse('admin:index')).status_code, 200)
         self.assertRedirects(self.client.get(reverse('delivery:dashboard')),
-                             reverse('delivery:login'), fetch_redirect_response=False)
+                             reverse('work_login'), fetch_redirect_response=False)
         reposition(self.both, [ADMIN, DRIVER])              # put it back for the other tests
 
 

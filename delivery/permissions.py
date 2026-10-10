@@ -43,7 +43,7 @@ def courier_required(view):
     @wraps(view)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path(), reverse('delivery:login'))
+            return redirect_to_login(request.get_full_path(), reverse('work_login'))
         if not is_courier(request.user):
             return render(request, 'delivery/forbidden.html', status=403)
         return view(request, *args, **kwargs)

@@ -501,60 +501,47 @@ def _order_cards(T, orders):
 
 
 def orders_report(site, request):
-    """Захиалга: orders, units and revenue per day."""
+    """Захиалга: delivered orders, units and revenue per day.
+
+    Everything here counts DELIVERED orders, on the day they were delivered
+    (the same rule as revenue / income), so a day's orders, units and revenue
+    always describe the same deliveries. Pending orders have their own card."""
     T = get_translations(request)
-    items = _period_items(request)
-    by_day = {
-        r['day']: {'day': r['day'], 'orders': r['orders'], 'units': r['units'], 'revenue': 0}
+    items = _income_items(request)          # lines of delivered orders, by delivery day
+    rows = sorted((
+        {'day': r['day'], 'orders': r['orders'], 'units': r['units'], 'revenue': r['revenue']}
         for r in (
             items
-            .annotate(day=TruncDate('order__created_at', tzinfo=SHOP_TZ))
+            .annotate(day=TruncDate('order__delivered_at', tzinfo=SHOP_TZ))
             .values('day')
-            .annotate(orders=Count('order', distinct=True), units=Sum('quantity'))
+            .annotate(orders=Count('order', distinct=True), units=Sum('quantity'),
+                      revenue=Sum(LINE_TOTAL))
             .order_by()
         )
-    }
-    # Revenue (Орлого) = delivered orders only, booked on the delivery day.
-    income_items = _income_items(request)
-    for day, amount in (
-        income_items
-        .annotate(day=TruncDate('order__delivered_at', tzinfo=SHOP_TZ))
-        .values_list('day')
-        .annotate(amount=Sum(LINE_TOTAL))
-        .order_by()
-    ):
-        by_day.setdefault(day, {'day': day, 'orders': 0, 'units': 0, 'revenue': 0})['revenue'] = amount
-    rows = sorted(by_day.values(), key=lambda r: r['day'], reverse=True)
+    ), key=lambda r: r['day'], reverse=True)
     total_orders = items.values('order').distinct().count()
     total_units = sum(r['units'] or 0 for r in rows)
     total_revenue = sum(r['revenue'] or 0 for r in rows)
-    # Average order = income per DELIVERED order (income only comes from those).
-    delivered_orders = income_items.values('order').distinct().count()
-    average = (total_revenue / delivered_orders) if delivered_orders else 0
+    average = (total_revenue / total_orders) if total_orders else 0
 
     date_from, date_to = _date_range(request)
     start, end = _bounds(date_from, date_to)
     order_qs = Order.objects.select_related('user').prefetch_related('items__product')
     order_cards = _order_cards(T, order_qs.filter(pk__in=items.values('order')))
+    # Pending = still waiting, so it is counted by the day it was placed.
     pending_cards = _order_cards(T, order_qs.filter(
         created_at__gte=start, created_at__lt=end, status=Order.STATUS_PENDING))
     pending = len(pending_cards)
-    # "Дууссан": orders in the period that are delivered ("Хүргэлт дууссан").
-    # Merely taken / assigned orders are still in progress, not completed.
-    completed_cards = _order_cards(T, order_qs.filter(
-        created_at__gte=start, created_at__lt=end,
-        status=Order.STATUS_DELIVERED))
-    completed = len(completed_cards)
+    # "Дууссан": delivered in the period - the same orders as the Orders card.
+    completed = len(order_cards)
 
     # Which products made up "Зарагдсан (ш)": units and amount per product.
     by_product = {}
-    for r in items.values('product', 'product__name', 'name').annotate(units=Sum('quantity')):
+    for r in items.values('product', 'product__name', 'name').annotate(
+            units=Sum('quantity'), revenue=Sum(LINE_TOTAL)):
         entry = by_product.setdefault(
             r['product'] or ('name', r['name']), [r['product__name'] or r['name'] or '—', 0, 0])
         entry[1] += r['units'] or 0
-    for r in income_items.values('product', 'product__name', 'name').annotate(revenue=Sum(LINE_TOTAL)):
-        entry = by_product.setdefault(
-            r['product'] or ('name', r['name']), [r['product__name'] or r['name'] or '—', 0, 0])
         entry[2] += r['revenue'] or 0
     sold_rows = sorted(by_product.values(), key=lambda e: (-e[1], e[0]))
 
@@ -567,7 +554,7 @@ def orders_report(site, request):
                 T['admin_col_name'], T['admin_report_units_sold'], sold_rows, T['admin_revenue'])),
             (T['admin_report_avg_order'], average),
             (T['admin_pending_orders'], pending, OrdersDetail(pending_cards)),
-            (T['admin_completed_orders'], completed, OrdersDetail(completed_cards)),
+            (T['admin_completed_orders'], completed, OrdersDetail(order_cards)),
         ],
         'columns': [
             (T['admin_report_date'], False, NO_FILTER, SORT),
@@ -577,7 +564,7 @@ def orders_report(site, request):
         ],
         'rows': [(r['day'], r['orders'], r['units'], r['revenue']) for r in rows],
         'footer': (T['admin_report_total'], total_orders, total_units, total_revenue),
-    }, note_key='admin_report_note')
+    }, note_key='admin_report_orders_note')
 
 
 def _contact(user):

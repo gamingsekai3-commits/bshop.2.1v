@@ -100,16 +100,19 @@ class DeliveryViewTests(TestCase):
     def test_login_required(self):
         resp = self.client.get(reverse('delivery:dashboard'))
         self.assertEqual(resp.status_code, 302)
-        self.assertIn(reverse('delivery:login'), resp['Location'])
+        self.assertIn(reverse('work_login'), resp['Location'])
 
-    def test_customer_cannot_log_in_to_delivery(self):
+    def test_customer_cannot_log_in_to_work_web(self):
         User.objects.create_user('cust', password='pass12345!')
-        resp = self.client.post(reverse('delivery:login'), {'username': 'cust', 'password': 'pass12345!'})
-        self.assertEqual(resp.status_code, 200)
+        self.client.post(reverse('work_login'), {'username': 'cust', 'password': 'pass12345!'})
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_driver_cannot_log_in_to_shop(self):
+        self.client.post(reverse('login'), {'username': 'driver1', 'password': 'pass12345!'})
         self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_driver_flow_over_http(self):
-        self.client.post(reverse('delivery:login'), {'username': 'driver1', 'password': 'pass12345!'})
+        self.client.post(reverse('work_login'), {'username': 'driver1', 'password': 'pass12345!'})
         self.assertEqual(self.client.get(reverse('delivery:dashboard')).status_code, 200)
         url = reverse('delivery:detail', args=[self.delivery.pk])
         self.assertEqual(self.client.get(url).status_code, 200)
@@ -119,6 +122,6 @@ class DeliveryViewTests(TestCase):
 
     def test_other_drivers_delivery_is_404(self):
         make_driver('driver2')
-        self.client.post(reverse('delivery:login'), {'username': 'driver2', 'password': 'pass12345!'})
+        self.client.post(reverse('work_login'), {'username': 'driver2', 'password': 'pass12345!'})
         resp = self.client.get(reverse('delivery:detail', args=[self.delivery.pk]))
         self.assertEqual(resp.status_code, 404)

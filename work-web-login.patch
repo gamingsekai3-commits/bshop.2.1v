@@ -1,0 +1,648 @@
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/admin_site.py store/admin_site.py
+--- a/store/admin_site.py	2026-10-10 20:03:58.000000000 +0000
++++ b/store/admin_site.py	2026-10-10 14:50:31.707920090 +0000
+@@ -10,16 +10,16 @@
+ `admin.site.register(...)` calls keep working untouched.
+ """
+ 
++from urllib.parse import urlencode
++
+ from django.contrib.admin import AdminSite
+ from django.contrib.admin.apps import AdminConfig
+-from django.http import HttpResponseRedirect
+ from django.shortcuts import redirect
+ from django.utils.decorators import method_decorator
+ from django.views.decorators.cache import never_cache
+ from django.urls import path, reverse, reverse_lazy
+ 
+ from .translations import lazy_t
+-from .workspaces import get_workspaces
+ 
+ # app label -> key in translations.py
+ APP_LABELS = {
+@@ -70,17 +70,21 @@
+ 
+     @method_decorator(never_cache)
+     def login(self, request, extra_context=None):
+-        """Stock admin login, plus: someone who can open more than one site
+-        (Admin + Хүргэгч) lands on the "which site?" screen instead of being
+-        sent straight to the admin. A deep link (?next=/admin/some/page/) is
+-        still honoured."""
+-        response = super().login(request, extra_context)
+-        if (request.method == 'POST' and request.user.is_authenticated
+-                and isinstance(response, HttpResponseRedirect)
+-                and response.url == reverse('admin:index', current_app=self.name)
+-                and len(get_workspaces(request.user)) > 1):
+-            return redirect('choose_workspace')
+-        return response
++        """Admins don't have their own login page any more: everyone signs in
++        through Work Web (/work/). Anyone who lands here (an expired session on
++        an /admin/ page, a typed URL) is sent there, keeping the deep link
++        (?next=/admin/some/page/) so they come back to the same place.
++
++        Already signed in as staff -> stock behaviour (straight to ?next= / index).
++        """
++        user = request.user
++        if user.is_authenticated and user.is_active and user.is_staff:
++            return super().login(request, extra_context)
++        url = reverse('work_login')
++        next_url = request.GET.get('next', '')
++        if next_url and next_url.startswith('/') and not next_url.startswith('//'):
++            url += '?' + urlencode({'next': next_url})
++        return redirect(url)
+ 
+     def get_urls(self):
+         # Report pages live under /admin/reports/... and go through
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/templates/login.html store/templates/login.html
+--- a/store/templates/login.html	2026-10-09 09:50:36.000000000 +0000
++++ b/store/templates/login.html	2026-10-10 14:50:40.741343762 +0000
+@@ -32,6 +32,8 @@
+                 </div>
+                 <button type="submit" class="btn btn-secondary">{{ T.login_btn }}</button>
+             </form>
++            <hr class="my-4">
++            <a href="{% url 'work_login' %}" class="btn btn-outline-dark w-100">{{ T.work_switch_to_work }}</a>
+         </div>
+     </div>
+ </div>
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/templates/work_login.html store/templates/work_login.html
+--- a/store/templates/work_login.html	1970-01-01 00:00:00.000000000 +0000
++++ b/store/templates/work_login.html	2026-10-10 14:50:40.744040770 +0000
+@@ -0,0 +1,36 @@
++{% extends 'layout.html' %}
++
++{% block content %}
++
++<header class="bg-dark-py-5">
++    <div class="container px-4 px-lg-5 my-5">
++        <div class="text-center text-white">
++            <h1 class="display-4 fw-bolder">{{ T.work_title }}</h1>
++            <p class="lead fw-normal text-white-50 mb-0">{{ T.work_subtitle }}</p>
++        </div>
++    </div>
++</header>
++<div class="container">
++    <div class="row">
++        <div class="col-md-6 offset-md-3">
++            <br>
++            <form action="{% url 'work_login' %}" method="POST">
++                {% csrf_token %}
++                <input type="hidden" name="next" value="{{ next }}">
++
++                <div class="mb-3">
++                  <label for="username" class="form-label">{{ T.username_label }}</label>
++                  <input type="text" class="form-control" id="username" name="username" autocomplete="username" autofocus>
++                </div>
++                <div class="mb-3">
++                  <label for="password" class="form-label">{{ T.password_label }}</label>
++                  <input type="password" class="form-control" id="password" name="password" autocomplete="current-password">
++                </div>
++                <button type="submit" class="btn btn-secondary">{{ T.work_login_btn }}</button>
++            </form>
++            <hr class="my-4">
++            <a href="{% url 'login' %}" class="btn btn-outline-dark w-100">{{ T.work_switch_to_customer }}</a>
++        </div>
++    </div>
++</div>
++{% endblock %}
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/test_workspaces.py store/test_workspaces.py
+--- a/store/test_workspaces.py	2026-10-10 20:03:58.000000000 +0000
++++ b/store/test_workspaces.py	2026-10-10 14:51:12.148227691 +0000
+@@ -150,58 +150,90 @@
+         cls.both = appoint('both', [ADMIN, DRIVER])
+ 
+     def login(self, where, username, **extra):
+-        data = {'username': username, 'password': PASSWORD}
+-        if where == 'admin:login':
+-            # the admin login form carries this hidden field, so a browser always sends it
+-            data['next'] = reverse('admin:index')
+-        return self.client.post(reverse(where), {**data, **extra})
++        return self.client.post(reverse(where), {'username': username, 'password': PASSWORD, **extra})
+ 
+-    # --- shop login: customers unchanged ---------------------------------
++    def signed_in(self):
++        return '_auth_user_id' in self.client.session
++
++    # --- customer login: customers only ----------------------------------
+     def test_customer_login_is_unchanged(self):
+         resp = self.login('login', 'cust')
+         self.assertRedirects(resp, reverse('home'), fetch_redirect_response=False)
++        self.assertTrue(self.signed_in())
+ 
+-    def test_shop_login_sends_single_role_staff_to_their_site(self):
+-        self.assertRedirects(self.login('login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
+-        self.client.logout()
+-        self.assertRedirects(self.login('login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
+-
+-    def test_shop_login_two_positions_goes_to_chooser(self):
+-        self.assertRedirects(self.login('login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
++    def test_customer_login_refuses_admin_driver_and_both(self):
++        for name in ('adm', 'drv', 'both'):
++            resp = self.login('login', name)
++            self.assertRedirects(resp, reverse('login'), fetch_redirect_response=False)
++            self.assertFalse(self.signed_in(), name)
++
++    def test_customer_login_refuses_label_only_employee(self):
++        # an employee whose position is only a label: no admin / driver site
++        user = User.objects.create_user('clerk', password=PASSWORD)
++        Employee.objects.create(user=user)
++        resp = self.login('login', 'clerk')
++        self.assertRedirects(resp, reverse('login'), fetch_redirect_response=False)
++        self.assertFalse(self.signed_in())
++
++    def test_customer_login_page_links_to_work_web(self):
++        self.assertContains(self.client.get(reverse('login')), reverse('work_login'))
++
++    # --- Work Web login --------------------------------------------------
++    def test_work_login_page_renders_and_links_back(self):
++        resp = self.client.get(reverse('work_login'))
++        self.assertEqual(resp.status_code, 200)
++        self.assertContains(resp, reverse('login'))
+ 
+-    # --- admin login -----------------------------------------------------
+-    def test_admin_login_single_role_goes_to_admin(self):
+-        self.assertRedirects(self.login('admin:login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
++    def test_work_login_single_role_goes_to_their_site(self):
++        self.assertRedirects(self.login('work_login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
++        self.client.logout()
++        self.assertRedirects(self.login('work_login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
+ 
+-    def test_admin_login_two_positions_goes_to_chooser(self):
+-        self.assertRedirects(self.login('admin:login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
++    def test_work_login_two_positions_goes_to_chooser(self):
++        self.assertRedirects(self.login('work_login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
+ 
+-    def test_admin_login_keeps_deep_link(self):
++    def test_work_login_keeps_deep_link(self):
+         target = reverse('admin:store_product_changelist')
+-        resp = self.login('admin:login', 'both', next=target)
++        resp = self.login('work_login', 'both', next=target)
+         self.assertRedirects(resp, target, fetch_redirect_response=False)
+ 
+-    def test_driver_cannot_use_admin_login(self):
+-        resp = self.login('admin:login', 'drv')
+-        self.assertEqual(resp.status_code, 200)               # form shown again, not signed in
+-        self.assertNotIn('_auth_user_id', self.client.session)
+-
+-    # --- driver login ----------------------------------------------------
+-    def test_driver_login_single_role_goes_to_board(self):
+-        self.assertRedirects(self.login('delivery:login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
+-
+-    def test_driver_login_two_positions_goes_to_chooser(self):
+-        self.assertRedirects(self.login('delivery:login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
+-
+-    def test_driver_login_keeps_next(self):
+-        target = reverse('delivery:deliveries')
+-        resp = self.login('delivery:login', 'both', next=target)
+-        self.assertRedirects(resp, target, fetch_redirect_response=False)
++    def test_work_login_ignores_offsite_next(self):
++        resp = self.login('work_login', 'adm', next='https://evil.example/steal')
++        self.assertRedirects(resp, reverse('admin:index'), fetch_redirect_response=False)
++
++    def test_work_login_refuses_customers(self):
++        resp = self.login('work_login', 'cust')
++        self.assertEqual(resp.status_code, 302)
++        self.assertFalse(self.signed_in())
+ 
+-    def test_admin_cannot_use_driver_login(self):
+-        resp = self.login('delivery:login', 'adm')
++    def test_work_login_wrong_password(self):
++        resp = self.client.post(reverse('work_login'), {'username': 'adm', 'password': 'nope'})
++        self.assertEqual(resp.status_code, 302)
++        self.assertFalse(self.signed_in())
++
++    def test_work_login_when_already_signed_in_skips_the_form(self):
++        self.client.force_login(self.admin)
++        self.assertRedirects(self.client.get(reverse('work_login')), reverse('admin:index'),
++                             fetch_redirect_response=False)
++
++    # --- the old separate logins are gone / forward to Work Web ----------
++    def test_driver_login_page_no_longer_exists(self):
++        self.assertEqual(self.client.get('/delivery/login/').status_code, 404)
++
++    def test_admin_login_redirects_to_work_web(self):
++        resp = self.client.get(reverse('admin:login'))
++        self.assertRedirects(resp, reverse('work_login'), fetch_redirect_response=False)
++
++    def test_admin_page_when_signed_out_ends_up_on_work_web_with_deep_link(self):
++        target = reverse('admin:store_product_changelist')
++        resp = self.client.get(target, follow=True)
++        self.assertEqual(resp.redirect_chain[-1][0], f"{reverse('work_login')}?next={target.replace('/', '%2F')}")
+         self.assertEqual(resp.status_code, 200)
+-        self.assertNotIn('_auth_user_id', self.client.session)
++
++    def test_driver_cannot_use_admin_site(self):
++        self.client.force_login(self.driver)
++        resp = self.client.get(reverse('admin:index'))
++        self.assertEqual(resp.status_code, 302)           # not let in
+ 
+     # --- chooser ---------------------------------------------------------
+     def test_chooser_lists_both_sites(self):
+@@ -224,7 +256,7 @@
+     def test_chooser_needs_login(self):
+         resp = self.client.get(reverse('choose_workspace'))
+         self.assertEqual(resp.status_code, 302)
+-        self.assertIn(reverse('login'), resp['Location'])
++        self.assertIn(reverse('work_login'), resp['Location'])
+ 
+     # --- one session, two sites: switching needs no second login ---------
+     def test_one_login_opens_both_sites(self):
+@@ -247,7 +279,7 @@
+         self.client.force_login(User.objects.get(pk=self.both.pk))
+         self.assertEqual(self.client.get(reverse('admin:index')).status_code, 200)
+         self.assertRedirects(self.client.get(reverse('delivery:dashboard')),
+-                             reverse('delivery:login'), fetch_redirect_response=False)
++                             reverse('work_login'), fetch_redirect_response=False)
+         reposition(self.both, [ADMIN, DRIVER])              # put it back for the other tests
+ 
+ 
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/translations.py store/translations.py
+--- a/store/translations.py	2026-10-10 20:03:58.000000000 +0000
++++ b/store/translations.py	2026-10-10 14:49:52.132885618 +0000
+@@ -582,6 +582,15 @@
+         'ws_switch': 'Сайт солих',
+         'ws_positions_help': 'Хэд хэдэн албан тушаал сонгож болно. Админ / Оператор нь админ сайтад, Хүргэгч нь хүргэгчийн сайтад орох эрх олгоно.',
+         'ws_positions_required': 'Дор хаяж нэг албан тушаал сонгоно уу.',
++
++        # Work Web (login for admin / driver / employee)
++        'work_title': 'Ажилтны нэвтрэлт',
++        'work_subtitle': 'Админ, хүргэгч болон ажилтнуудад зориулсан Work Web',
++        'work_login_btn': 'Work Web-д нэвтрэх',
++        'work_switch_to_work': 'Work Web нэвтрэлт рүү шилжих',
++        'work_switch_to_customer': 'Худалдан авагчийн нэвтрэлт рүү буцах',
++        'msg_work_only': 'Админ, хүргэгч болон ажилтнууд энд нэвтэрч болохгүй. Work Web нэвтрэлтийг ашиглана уу.',
++        'msg_customer_only': 'Энэ бүртгэл ажилтны эрхгүй байна. Худалдан авагчийн нэвтрэлтийг ашиглана уу.',
+     },
+ 
+     'en': {
+@@ -1087,6 +1096,15 @@
+         'ws_switch': 'Switch site',
+         'ws_positions_help': 'You can pick several positions. Admin / Operator give access to the admin site, Driver gives access to the driver site.',
+         'ws_positions_required': 'Select at least one position.',
++
++        # Work Web (login for admin / driver / employee)
++        'work_title': 'Staff login',
++        'work_subtitle': 'Work Web for admins, drivers and employees',
++        'work_login_btn': 'Log in to Work Web',
++        'work_switch_to_work': 'Switch to Work Web login',
++        'work_switch_to_customer': 'Back to customer login',
++        'msg_work_only': 'Admins, drivers and employees cannot log in here. Please use the Work Web login.',
++        'msg_customer_only': 'This account has no staff access. Please use the customer login.',
+     },
+ }
+ 
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/urls.py store/urls.py
+--- a/store/urls.py	2026-10-10 20:04:00.000000000 +0000
++++ b/store/urls.py	2026-10-10 14:50:24.724191143 +0000
+@@ -5,6 +5,7 @@
+     path('', views.home, name='home'),
+     path('about/', views.about, name='about'),
+     path('login/', views.login_user, name='login'),
++    path('work/', views.work_login, name='work_login'),
+     path('logout/', views.logout_user, name='logout'),
+     path('workspace/', views.choose_workspace, name='choose_workspace'),
+     path('register/', views.register_user, name='register'),
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/views.py store/views.py
+--- a/store/views.py	2026-10-10 20:04:00.000000000 +0000
++++ b/store/views.py	2026-10-10 14:50:16.191883671 +0000
+@@ -8,6 +8,7 @@
+ from django.contrib.auth.decorators import login_required, user_passes_test
+ from django.contrib.admin.views.decorators import staff_member_required
+ from django.shortcuts import get_object_or_404, redirect, render
++from django.utils.http import url_has_allowed_host_and_scheme
+ from django.http import HttpResponseRedirect, JsonResponse
+ from django.db.models import Q
+ import urllib
+@@ -22,14 +23,15 @@
+ from django import forms
+ from .forms import RegisterForm, ProductForm, EmployeeForm, CustomerProfileForm, EmployeeProfileForm
+ from .translations import t, get_language, get_translations, AVAILABLE_LANGUAGES, COOKIE_NAME
+-from .workspaces import get_workspaces, landing_redirect, workspace_url
++from .workspaces import get_workspaces, is_work_user, landing_redirect, workspace_url
+ from .search_utils import search_products, correct_query, suggest
+ from .sorting import apply_sort_and_period
+ from django.contrib.admin.sites import site as admin_site
+ 
+ 
+ # Reused on every staff-only view below (employee list, add employee).
+-staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff)
++# Not signed in -> Work Web login (staff can't use the customer login).
++staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff, login_url='work_login')
+ 
+ def _hero_slides(request):
+     """Slides for the home page slider: exactly the ones the admin made
+@@ -95,23 +97,72 @@
+     return redirect('category', catname=catname)
+ 
+ def login_user(request):
++    """Customer login. Admins, drivers and employees are refused here and sent
++    to the Work Web login instead - they only sign in at /work/."""
+     if request.method == 'POST':
+-        username = request.POST['username']
+-        password = request.POST['password']
++        username = request.POST.get('username', '')
++        password = request.POST.get('password', '')
+         user = authenticate(request, username=username, password=password)
+         if user is not None:
++            if is_work_user(user):
++                # Correct password, wrong door: do NOT sign them in.
++                messages.error(request, t(request, 'msg_work_only'))
++                return redirect('login')
+             login(request, user)
+             messages.success(request, t(request, 'msg_login_success'))
+-            # Customers: unchanged (shop home). Staff: one site -> straight in,
+-            # two sites (e.g. Admin + Driver) -> the "which site?" chooser.
+-            return landing_redirect(user)
++            return landing_redirect(user)      # customers -> shop home
+         else:
+             messages.error(request, t(request, 'msg_login_failed'))
+             return redirect('login')
+     else:
+         return render(request, 'login.html', {})
+ 
+-@login_required
++
++def work_login(request):
++    """Work Web login: the only way in for admins, drivers and employees.
++
++    One sign-in opens every site the person's positions allow: one site -> straight
++    in, two or more -> the "which site?" chooser. Customers are refused here too
++    (they use the normal shop login).
++    """
++    if request.method == 'POST':
++        username = request.POST.get('username', '')
++        password = request.POST.get('password', '')
++        user = authenticate(request, username=username, password=password)
++        if user is None:
++            messages.error(request, t(request, 'msg_login_failed'))
++            return redirect(_work_login_url(request.POST.get('next', '')))
++        if not is_work_user(user):
++            # A customer account: don't sign it in on the staff side.
++            messages.error(request, t(request, 'msg_customer_only'))
++            return redirect(_work_login_url(request.POST.get('next', '')))
++        login(request, user)
++        messages.success(request, t(request, 'msg_login_success'))
++        next_url = request.POST.get('next', '')
++        if next_url and url_has_allowed_host_and_scheme(
++                next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
++            return redirect(next_url)          # deep link, e.g. /admin/store/product/
++        return landing_redirect(user)
++
++    # Already signed in with a site to open: skip the form. `next` is ignored on
++    # purpose here - honouring it could bounce someone between a site they have
++    # no access to and this page forever.
++    if get_workspaces(request.user):
++        return landing_redirect(request.user)
++    return render(request, 'work_login.html', {'next': request.GET.get('next', '')})
++
++
++def _work_login_url(next_url=''):
++    """/work/ plus a safe ?next= so a failed attempt keeps the deep link."""
++    from urllib.parse import urlencode
++    from django.urls import reverse
++    url = reverse('work_login')
++    if next_url and next_url.startswith('/') and not next_url.startswith('//'):
++        url += '?' + urlencode({'next': next_url})
++    return url
++
++
++@login_required(login_url='work_login')
+ def choose_workspace(request):
+     """Shown to someone who can open more than one site (e.g. holds both the
+     Admin and Хүргэгч positions). One site -> straight in; none -> shop home."""
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/store/workspaces.py store/workspaces.py
+--- a/store/workspaces.py	2026-10-10 20:03:58.000000000 +0000
++++ b/store/workspaces.py	2026-10-10 14:50:01.358407908 +0000
+@@ -5,6 +5,9 @@
+     admin  -> /admin/      needs User.is_staff
+     driver -> /delivery/   needs an active delivery.Driver profile
+ 
++Staff (admins, drivers, any employee) sign in ONLY through the "Work Web" login
++(/work/). The customer login (/login/) refuses them - see is_work_user().
++
+ Access always comes from those real flags, never from the free-text position
+ label. The positions an admin ticks on the employee form are what *set* the
+ flags (see Employee.refresh_from_positions and delivery/signals.py).
+@@ -21,21 +24,41 @@
+ ADMIN = 'admin'
+ DRIVER = 'driver'
+ 
++# URL name of the one login page for admins, drivers and employees.
++WORK_LOGIN = 'work_login'
++
+ 
+ @dataclass(frozen=True)
+ class Workspace:
+     key: str
+     label: object          # lazy translated text
+     url_name: str          # where the site starts (after login)
+-    login_url_name: str    # that site's own login page
++    login_url_name: str    # where an anonymous visitor is sent to sign in
+ 
+ 
+ _WORKSPACES = {
+-    ADMIN: Workspace(ADMIN, lazy_t('ws_admin'), 'admin:index', 'admin:login'),
+-    DRIVER: Workspace(DRIVER, lazy_t('ws_driver'), 'delivery:board', 'delivery:login'),
++    ADMIN: Workspace(ADMIN, lazy_t('ws_admin'), 'admin:index', WORK_LOGIN),
++    DRIVER: Workspace(DRIVER, lazy_t('ws_driver'), 'delivery:board', WORK_LOGIN),
+ }
+ 
+ 
++def is_work_user(user):
++    """True for anyone who belongs on Work Web instead of the customer login:
++    admins / staff, superusers, drivers and every employee (even one whose
++    position is only a label and opens no site).
++
++    Reverse one-to-ones are read by name so store never imports delivery; a
++    missing profile raises an AttributeError subclass, hence the getattr default.
++    """
++    if not getattr(user, 'is_authenticated', False):
++        return False
++    if user.is_staff or user.is_superuser:
++        return True
++    if getattr(user, 'employee_profile', None) is not None:
++        return True
++    return getattr(user, 'driver_profile', None) is not None
++
++
+ def get_workspaces(user):
+     """Workspaces this user may enter, admin first. Empty list = plain customer."""
+     if not getattr(user, 'is_authenticated', False) or not user.is_active:
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/delivery/forms.py delivery/forms.py
+--- a/delivery/forms.py	2026-10-09 09:49:56.000000000 +0000
++++ b/delivery/forms.py	2026-10-10 14:50:31.707181507 +0000
+@@ -1,26 +1,6 @@
+ from django import forms
+-from django.contrib.auth.forms import AuthenticationForm
+ 
+-from .models import Delivery, Driver
+-
+-
+-class DriverLoginForm(AuthenticationForm):
+-    """Ердийн нэвтрэлт + зөвхөн идэвхтэй хүргэгч нэвтэрч чадна."""
+-
+-    username = forms.CharField(label='Нэвтрэх нэр', widget=forms.TextInput(attrs={'autofocus': True, 'autocomplete': 'username'}))
+-    password = forms.CharField(label='Нууц үг', strip=False, widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'}))
+-
+-    error_messages = {
+-        **AuthenticationForm.error_messages,
+-        'invalid_login': 'Нэвтрэх нэр эсвэл нууц үг буруу байна.',
+-        'inactive': 'Энэ бүртгэл идэвхгүй байна.',
+-        'not_driver': 'Энэ бүртгэл хүргэгчийн эрхгүй байна.',
+-    }
+-
+-    def confirm_login_allowed(self, user):
+-        super().confirm_login_allowed(user)
+-        if not Driver.objects.filter(user=user, is_active=True).exists():
+-            raise forms.ValidationError(self.error_messages['not_driver'], code='not_driver')
++from .models import Delivery
+ 
+ 
+ class FailDeliveryForm(forms.Form):
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/delivery/permissions.py delivery/permissions.py
+--- a/delivery/permissions.py	2026-10-09 09:49:56.000000000 +0000
++++ b/delivery/permissions.py	2026-10-10 14:50:24.726392688 +0000
+@@ -43,7 +43,7 @@
+     @wraps(view)
+     def wrapper(request, *args, **kwargs):
+         if not request.user.is_authenticated:
+-            return redirect_to_login(request.get_full_path(), reverse('delivery:login'))
++            return redirect_to_login(request.get_full_path(), reverse('work_login'))
+         if not is_courier(request.user):
+             return render(request, 'delivery/forbidden.html', status=403)
+         return view(request, *args, **kwargs)
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/delivery/templates/delivery/login.html delivery/templates/delivery/login.html
+--- a/delivery/templates/delivery/login.html	2026-10-09 09:49:58.000000000 +0000
++++ b/delivery/templates/delivery/login.html	1970-01-01 00:00:00.000000000 +0000
+@@ -1,17 +0,0 @@
+-{% extends 'delivery/base.html' %}
+-{% block title %}Нэвтрэх{% endblock %}
+-{% block content %}
+-<div class="card login">
+-    <h1>Хүргэгчийн нэвтрэлт</h1>
+-    <form method="post" novalidate>
+-        {% csrf_token %}
+-        <input type="hidden" name="next" value="{{ next }}">
+-        {% if form.non_field_errors %}<div class="flash flash-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+-        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+-        {{ form.username }}
+-        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+-        {{ form.password }}
+-        <button class="btn btn-primary" type="submit">НЭВТРЭХ</button>
+-    </form>
+-</div>
+-{% endblock %}
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/delivery/tests.py delivery/tests.py
+--- a/delivery/tests.py	2026-10-09 09:49:56.000000000 +0000
++++ b/delivery/tests.py	2026-10-10 14:50:55.146518997 +0000
+@@ -100,16 +100,19 @@
+     def test_login_required(self):
+         resp = self.client.get(reverse('delivery:dashboard'))
+         self.assertEqual(resp.status_code, 302)
+-        self.assertIn(reverse('delivery:login'), resp['Location'])
++        self.assertIn(reverse('work_login'), resp['Location'])
+ 
+-    def test_customer_cannot_log_in_to_delivery(self):
++    def test_customer_cannot_log_in_to_work_web(self):
+         User.objects.create_user('cust', password='pass12345!')
+-        resp = self.client.post(reverse('delivery:login'), {'username': 'cust', 'password': 'pass12345!'})
+-        self.assertEqual(resp.status_code, 200)
++        self.client.post(reverse('work_login'), {'username': 'cust', 'password': 'pass12345!'})
++        self.assertNotIn('_auth_user_id', self.client.session)
++
++    def test_driver_cannot_log_in_to_shop(self):
++        self.client.post(reverse('login'), {'username': 'driver1', 'password': 'pass12345!'})
+         self.assertNotIn('_auth_user_id', self.client.session)
+ 
+     def test_driver_flow_over_http(self):
+-        self.client.post(reverse('delivery:login'), {'username': 'driver1', 'password': 'pass12345!'})
++        self.client.post(reverse('work_login'), {'username': 'driver1', 'password': 'pass12345!'})
+         self.assertEqual(self.client.get(reverse('delivery:dashboard')).status_code, 200)
+         url = reverse('delivery:detail', args=[self.delivery.pk])
+         self.assertEqual(self.client.get(url).status_code, 200)
+@@ -119,6 +122,6 @@
+ 
+     def test_other_drivers_delivery_is_404(self):
+         make_driver('driver2')
+-        self.client.post(reverse('delivery:login'), {'username': 'driver2', 'password': 'pass12345!'})
++        self.client.post(reverse('work_login'), {'username': 'driver2', 'password': 'pass12345!'})
+         resp = self.client.get(reverse('delivery:detail', args=[self.delivery.pk]))
+         self.assertEqual(resp.status_code, 404)
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/delivery/urls.py delivery/urls.py
+--- a/delivery/urls.py	2026-10-09 09:49:56.000000000 +0000
++++ b/delivery/urls.py	2026-10-10 14:50:24.724784526 +0000
+@@ -9,7 +9,6 @@
+     path('board/', views.board, name='board'),
+     path('board/data/', views.board_partial, name='board_data'),
+     path('board/<str:step>/', views.board_action, name='board_action'),
+-    path('login/', views.login_view, name='login'),
+     path('logout/', views.logout_view, name='logout'),
+     path('dashboard/', views.dashboard, name='dashboard'),
+     path('deliveries/', views.deliveries, name='deliveries'),
+diff -ruN -x __pycache__ -x '*.pyc' /tmp/orig/delivery/views.py delivery/views.py
+--- a/delivery/views.py	2026-10-10 20:03:58.000000000 +0000
++++ b/delivery/views.py	2026-10-10 14:50:24.725344934 +0000
+@@ -1,20 +1,18 @@
+ from functools import wraps
++from urllib.parse import urlencode
+ 
+ from django.contrib import messages
+-from django.contrib.auth import login, logout
++from django.contrib.auth import logout
+ from django.db.models import Count, Q
+ from django.http import Http404, JsonResponse
+ from django.template.loader import render_to_string
+ from django.shortcuts import get_object_or_404, redirect, render
+ from django.urls import reverse
+ from django.utils import timezone
+-from django.utils.http import url_has_allowed_host_and_scheme
+ from django.views.decorators.http import require_POST
+ 
+-from store.workspaces import landing_redirect
+-
+ from . import services
+-from .forms import DriverLoginForm, FailDeliveryForm
++from .forms import FailDeliveryForm
+ from .models import Delivery, Driver
+ 
+ 
+@@ -24,36 +22,21 @@
+     @wraps(view)
+     def wrapper(request, *args, **kwargs):
+         if not request.user.is_authenticated:
+-            return redirect(f"{reverse('delivery:login')}?next={request.path}")
++            return redirect(f"{reverse('work_login')}?{urlencode({'next': request.get_full_path()})}")
+         driver = Driver.objects.filter(user=request.user, is_active=True).select_related('user').first()
+         if driver is None:
+             messages.error(request, 'Энэ бүртгэл хүргэгчийн эрхгүй байна.')
+-            return redirect('delivery:login')
++            return redirect('work_login')
+         request.driver = driver
+         return view(request, *args, **kwargs)
+ 
+     return wrapper
+ 
+ 
+-def login_view(request):
+-    if request.user.is_authenticated and Driver.objects.filter(user=request.user, is_active=True).exists():
+-        return redirect('delivery:board')
+-
+-    form = DriverLoginForm(request, data=request.POST or None)
+-    if request.method == 'POST' and form.is_valid():
+-        login(request, form.get_user())
+-        next_url = request.POST.get('next') or request.GET.get('next') or ''
+-        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+-            return redirect(next_url)
+-        # A person who is also an admin (two positions) picks which site to open.
+-        return landing_redirect(form.get_user())
+-    return render(request, 'delivery/login.html', {'form': form, 'next': request.GET.get('next', '')})
+-
+-
+ @require_POST
+ def logout_view(request):
+     logout(request)
+-    return redirect('delivery:login')
++    return redirect('work_login')
+ 
+ 
+ @driver_required

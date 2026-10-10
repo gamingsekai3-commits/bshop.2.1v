@@ -10,16 +10,16 @@ Everything else (permissions, registration, URLs) is stock Django - existing
 `admin.site.register(...)` calls keep working untouched.
 """
 
+from urllib.parse import urlencode
+
 from django.contrib.admin import AdminSite
 from django.contrib.admin.apps import AdminConfig
-from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.urls import path, reverse, reverse_lazy
 
 from .translations import lazy_t
-from .workspaces import get_workspaces
 
 # app label -> key in translations.py
 APP_LABELS = {
@@ -70,17 +70,21 @@ class BshopAdminSite(AdminSite):
 
     @method_decorator(never_cache)
     def login(self, request, extra_context=None):
-        """Stock admin login, plus: someone who can open more than one site
-        (Admin + Хүргэгч) lands on the "which site?" screen instead of being
-        sent straight to the admin. A deep link (?next=/admin/some/page/) is
-        still honoured."""
-        response = super().login(request, extra_context)
-        if (request.method == 'POST' and request.user.is_authenticated
-                and isinstance(response, HttpResponseRedirect)
-                and response.url == reverse('admin:index', current_app=self.name)
-                and len(get_workspaces(request.user)) > 1):
-            return redirect('choose_workspace')
-        return response
+        """Admins don't have their own login page any more: everyone signs in
+        through Work Web (/work/). Anyone who lands here (an expired session on
+        an /admin/ page, a typed URL) is sent there, keeping the deep link
+        (?next=/admin/some/page/) so they come back to the same place.
+
+        Already signed in as staff -> stock behaviour (straight to ?next= / index).
+        """
+        user = request.user
+        if user.is_authenticated and user.is_active and user.is_staff:
+            return super().login(request, extra_context)
+        url = reverse('work_login')
+        next_url = request.GET.get('next', '')
+        if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+            url += '?' + urlencode({'next': next_url})
+        return redirect(url)
 
     def get_urls(self):
         # Report pages live under /admin/reports/... and go through

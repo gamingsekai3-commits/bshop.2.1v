@@ -134,6 +134,11 @@ class StockToProfitFlowTests(TestCase):
         self.assertEqual(self.product.stock, 7)       # sold straight from stock
         self.assertEqual(Order.objects.count(), 1)
 
+        # Income only counts orders marked delivered (see reports._income_items).
+        order = Order.objects.get()
+        order.status = Order.STATUS_DELIVERED
+        order.save()
+
         self.client.force_login(self.staff)
         resp = self.client.get(reverse('admin:report_overview'))
         self.assertEqual(resp.context['income'], int(price * 3))

@@ -46,16 +46,20 @@ def create_delivery_for_order(order):
 
 def set_driver(delivery, driver, by=None):
     """Админ хүргэгч онооно / солино / хасна. Бараа гараас гарсан хойно солихгүй."""
-    if delivery.status not in Delivery.REASSIGNABLE_STATUSES:
-        raise DeliveryError(lazy_t('dl_e_no_reassign'))
     if driver is not None and not driver.is_active:
         raise DeliveryError(lazy_t('dl_e_inactive_driver'))
-    if driver == delivery.driver:
-        return delivery
 
-    old_driver = delivery.driver
-    old_status = delivery.status
     with transaction.atomic():
+        # Re-read the row under a lock: the caller's object can be stale (the
+        # driver may have picked the goods up since it was loaded).
+        current = Delivery.objects.select_for_update().get(pk=delivery.pk)
+        if current.status not in Delivery.REASSIGNABLE_STATUSES:
+            raise DeliveryError(lazy_t('dl_e_no_reassign'))
+        if driver == current.driver:
+            return delivery
+        old_driver = current.driver
+        old_status = current.status
+        delivery.refresh_from_db()
         delivery.driver = driver
         delivery.accepted_at = None
         delivery.unloaded_at = None

@@ -5,6 +5,9 @@ There are two staff sites besides the public shop:
     admin  -> /admin/      needs User.is_staff
     driver -> /delivery/   needs an active delivery.Driver profile
 
+Staff (admins, drivers, any employee) sign in ONLY through the "Work Web" login
+(/work/). The customer login (/login/) refuses them - see is_work_user().
+
 Access always comes from those real flags, never from the free-text position
 label. The positions an admin ticks on the employee form are what *set* the
 flags (see Employee.refresh_from_positions and delivery/signals.py).
@@ -21,19 +24,39 @@ from .translations import lazy_t
 ADMIN = 'admin'
 DRIVER = 'driver'
 
+# URL name of the one login page for admins, drivers and employees.
+WORK_LOGIN = 'work_login'
+
 
 @dataclass(frozen=True)
 class Workspace:
     key: str
     label: object          # lazy translated text
     url_name: str          # where the site starts (after login)
-    login_url_name: str    # that site's own login page
+    login_url_name: str    # where an anonymous visitor is sent to sign in
 
 
 _WORKSPACES = {
-    ADMIN: Workspace(ADMIN, lazy_t('ws_admin'), 'admin:index', 'admin:login'),
-    DRIVER: Workspace(DRIVER, lazy_t('ws_driver'), 'delivery:board', 'delivery:login'),
+    ADMIN: Workspace(ADMIN, lazy_t('ws_admin'), 'admin:index', WORK_LOGIN),
+    DRIVER: Workspace(DRIVER, lazy_t('ws_driver'), 'delivery:board', WORK_LOGIN),
 }
+
+
+def is_work_user(user):
+    """True for anyone who belongs on Work Web instead of the customer login:
+    admins / staff, superusers, drivers and every employee (even one whose
+    position is only a label and opens no site).
+
+    Reverse one-to-ones are read by name so store never imports delivery; a
+    missing profile raises an AttributeError subclass, hence the getattr default.
+    """
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_staff or user.is_superuser:
+        return True
+    if getattr(user, 'employee_profile', None) is not None:
+        return True
+    return getattr(user, 'driver_profile', None) is not None
 
 
 def get_workspaces(user):

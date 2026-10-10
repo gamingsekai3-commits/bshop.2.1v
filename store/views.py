@@ -8,12 +8,13 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.http import HttpResponseRedirect, JsonResponse
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 import urllib
 
 from cart.cart import Cart
-from .pager import paginate_rows
+from .pager import _url as _query_url, paginate_rows
 from .stock_rules import low_q, ok_q, out_q
 from .models import HERO_MAX_SLIDES, Category, HeroSlide, Product, Customer, Employee, SearchHistory, StockEntry
 from .pricing import js_config as markup_config, markup_percent, selling_price
@@ -22,14 +23,15 @@ from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from .forms import RegisterForm, ProductForm, EmployeeForm, CustomerProfileForm, EmployeeProfileForm
 from .translations import t, get_language, get_translations, AVAILABLE_LANGUAGES, COOKIE_NAME
-from .workspaces import get_workspaces, landing_redirect, workspace_url
+from .workspaces import get_workspaces, is_work_user, landing_redirect, workspace_url
 from .search_utils import search_products, correct_query, suggest
 from .sorting import apply_sort_and_period
 from django.contrib.admin.sites import site as admin_site
 
 
 # Reused on every staff-only view below (employee list, add employee).
-staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff)
+# Not signed in -> Work Web login (staff can't use the customer login).
+staff_required = user_passes_test(lambda u: u.is_authenticated and u.is_staff, login_url='work_login')
 
 def _hero_slides(request):
     """Slides for the home page slider: exactly the ones the admin made
@@ -95,23 +97,72 @@ def add_product(request, catname):
     return redirect('category', catname=catname)
 
 def login_user(request):
+    """Customer login. Admins, drivers and employees are refused here and sent
+    to the Work Web login instead - they only sign in at /work/."""
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
         if user is not None:
+            if is_work_user(user):
+                # Correct password, wrong door: do NOT sign them in.
+                messages.error(request, t(request, 'msg_work_only'))
+                return redirect('login')
             login(request, user)
             messages.success(request, t(request, 'msg_login_success'))
-            # Customers: unchanged (shop home). Staff: one site -> straight in,
-            # two sites (e.g. Admin + Driver) -> the "which site?" chooser.
-            return landing_redirect(user)
+            return landing_redirect(user)      # customers -> shop home
         else:
             messages.error(request, t(request, 'msg_login_failed'))
             return redirect('login')
     else:
         return render(request, 'login.html', {})
 
-@login_required
+
+def work_login(request):
+    """Work Web login: the only way in for admins, drivers and employees.
+
+    One sign-in opens every site the person's positions allow: one site -> straight
+    in, two or more -> the "which site?" chooser. Customers are refused here too
+    (they use the normal shop login).
+    """
+    if request.method == 'POST':
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            messages.error(request, t(request, 'msg_login_failed'))
+            return redirect(_work_login_url(request.POST.get('next', '')))
+        if not is_work_user(user):
+            # A customer account: don't sign it in on the staff side.
+            messages.error(request, t(request, 'msg_customer_only'))
+            return redirect(_work_login_url(request.POST.get('next', '')))
+        login(request, user)
+        messages.success(request, t(request, 'msg_login_success'))
+        next_url = request.POST.get('next', '')
+        if next_url and url_has_allowed_host_and_scheme(
+                next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+            return redirect(next_url)          # deep link, e.g. /admin/store/product/
+        return landing_redirect(user)
+
+    # Already signed in with a site to open: skip the form. `next` is ignored on
+    # purpose here - honouring it could bounce someone between a site they have
+    # no access to and this page forever.
+    if get_workspaces(request.user):
+        return landing_redirect(request.user)
+    return render(request, 'work_login.html', {'next': request.GET.get('next', '')})
+
+
+def _work_login_url(next_url=''):
+    """/work/ plus a safe ?next= so a failed attempt keeps the deep link."""
+    from urllib.parse import urlencode
+    from django.urls import reverse
+    url = reverse('work_login')
+    if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+        url += '?' + urlencode({'next': next_url})
+    return url
+
+
+@login_required(login_url='work_login')
 def choose_workspace(request):
     """Shown to someone who can open more than one site (e.g. holds both the
     Admin and Хүргэгч positions). One site -> straight in; none -> shop home."""
@@ -317,6 +368,47 @@ def clear_search_history(request):
     return JsonResponse({'success': True})
 
 
+# Columns of the Stock page that can be sorted by clicking the header. The
+# order is applied to the whole queryset before it is paginated, so it
+# spans every page, not just the 10 rows on screen.
+STOCK_SORT_FIELDS = {
+    'name': ('name',),
+    'category': ('category__name', 'name'),
+    'sku': ('id',),
+    'price': ('price', 'name'),
+    'stock': ('stock', 'name'),
+    'status': ('_stock_rank', 'name'),          # out -> low -> ok
+}
+
+
+def _apply_stock_sort(request, products):
+    """Return (ordered queryset, {column: {'mark': ..., 'url': ...}}).
+    Click cycle per column: ascending -> descending -> off. Unknown values
+    of ?sort= / ?dir= are ignored."""
+    sort = request.GET.get('sort')
+    direction = request.GET.get('dir')
+    if sort not in STOCK_SORT_FIELDS or direction not in ('asc', 'desc'):
+        sort = direction = None
+
+    columns = {}
+    for key in STOCK_SORT_FIELDS:
+        if key == sort and direction == 'asc':
+            columns[key] = {'mark': '\u25B2', 'url': _query_url(request, sort=key, dir='desc', p=None)}
+        elif key == sort:
+            columns[key] = {'mark': '\u25BC', 'url': _query_url(request, sort=None, dir=None, p=None)}
+        else:
+            columns[key] = {'mark': '\u21C5', 'url': _query_url(request, sort=key, dir='asc', p=None)}
+
+    if sort is None:
+        return products.order_by('name'), columns
+    if sort == 'status':
+        products = products.annotate(_stock_rank=Case(
+            When(out_q(), then=Value(0)), When(low_q(), then=Value(1)),
+            default=Value(2), output_field=IntegerField()))
+    order = [('-' if direction == 'desc' else '') + f for f in STOCK_SORT_FIELDS[sort]]
+    return products.order_by(*order), columns
+
+
 @staff_member_required
 def stock(request):
     products = Product.objects.select_related('category').all().order_by('name')
@@ -398,9 +490,11 @@ def stock(request):
     context = admin_site.each_context(request)
     # One page of rows (?p=, ?per_page=); the summary cards above are counted
     # from all products, so they do not change with the page.
+    products, sort_columns = _apply_stock_sort(request, products)
     products, pager = paginate_rows(request, products)
     context.update({
         'pager': pager,
+        'sort_columns': sort_columns,
         'products': products,
         'search_value': search_value,
         'status': status,

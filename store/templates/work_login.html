@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+<header class="bg-dark-py-5">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="text-center text-white">
+            <h1 class="display-4 fw-bolder">{{ T.work_title }}</h1>
+            <p class="lead fw-normal text-white-50 mb-0">{{ T.work_subtitle }}</p>
+        </div>
+    </div>
+</header>
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <br>
+            <form action="{% url 'work_login' %}" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
+
+                <div class="mb-3">
+                  <label for="username" class="form-label">{{ T.username_label }}</label>
+                  <input type="text" class="form-control" id="username" name="username" autocomplete="username" autofocus>
+                </div>
+                <div class="mb-3">
+                  <label for="password" class="form-label">{{ T.password_label }}</label>
+                  <input type="password" class="form-control" id="password" name="password" autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-secondary">{{ T.work_login_btn }}</button>
+            </form>
+            <hr class="my-4">
+            <a href="{% url 'login' %}" class="btn btn-outline-dark w-100">{{ T.work_switch_to_customer }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
