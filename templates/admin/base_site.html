@@ -695,6 +695,14 @@ body.bshop-popup-open {
 }
 
 
+/* Drop-down of the product search box: must be above the popup overlay. */
+body > .select2-container {
+
+    z-index: 100000 !important;
+
+}
+
+
 .bshop-add-popup-content .submit-row {
 
     padding-right: 10px;
@@ -938,6 +946,129 @@ document.addEventListener(
 
 
         /*
+         * PRODUCT SEARCH BOX (Django "autocomplete" / select2 widget)
+         *
+         * The form is fetched as text and put in with innerHTML, and the
+         * browser never runs <script> tags added that way. So the select2
+         * scripts and styles that live outside #content were never loaded and
+         * the product field stayed a plain, empty <select>. Here we load them
+         * once (the first time a popup needs them) and then start the widget
+         * on the freshly inserted form.
+         */
+        var widgetAssets = null;
+
+        function loadStyle(href) {
+
+            var exists = Array.prototype.some.call(
+                document.querySelectorAll('link[rel="stylesheet"]'),
+                function (l) { return l.getAttribute('href') === href; }
+            );
+
+            if (exists) { return; }
+
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            document.head.appendChild(link);
+
+        }
+
+        function loadScript(src) {
+
+            return new Promise(function (resolve, reject) {
+
+                var script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                script.onload = resolve;
+                script.onerror = function () {
+                    reject(new Error('Could not load ' + src));
+                };
+                document.head.appendChild(script);
+
+            });
+
+        }
+
+        function loadWidgetAssets(doc) {
+
+            if (widgetAssets) { return widgetAssets; }
+
+            var jq = window.django && window.django.jQuery;
+
+            if (!jq) {
+                return Promise.reject(new Error('django.jQuery is not loaded'));
+            }
+
+            // Already there (loaded by an earlier popup): nothing to do.
+            if (jq.fn.select2 && jq.fn.djangoAdminSelect2) {
+                return Promise.resolve();
+            }
+
+            doc.querySelectorAll('link[rel="stylesheet"]').forEach(function (l) {
+                var href = l.getAttribute('href');
+                if (href && /select2|autocomplete/.test(href)) { loadStyle(href); }
+            });
+
+            var sources = [];
+
+            doc.querySelectorAll('script[src]').forEach(function (s) {
+                var src = s.getAttribute('src');
+                if (src && /\/vendor\/select2\/.*\.js|\/autocomplete[^\/]*\.js/.test(src)) {
+                    sources.push(src);
+                }
+            });
+
+            // select2 attaches itself to the global jQuery. On this page
+            // jquery.init.js has already handed jQuery over to django.jQuery
+            // and removed the global, so lend it back while select2 loads.
+            var previousJQuery = window.jQuery;
+            var previous$ = window.$;
+
+            window.jQuery = window.$ = jq;
+
+            function restoreGlobals() {
+                if (previousJQuery === undefined) { delete window.jQuery; }
+                else { window.jQuery = previousJQuery; }
+                if (previous$ === undefined) { delete window.$; }
+                else { window.$ = previous$; }
+            }
+
+            widgetAssets = sources.reduce(function (chain, src) {
+                return chain.then(function () { return loadScript(src); });
+            }, Promise.resolve()).then(restoreGlobals, function (error) {
+                restoreGlobals();
+                widgetAssets = null;          // allow a retry next time
+                throw error;
+            });
+
+            return widgetAssets;
+
+        }
+
+        function activatePopupWidgets(doc) {
+
+            if (!content.querySelector('.admin-autocomplete')) { return; }
+
+            loadWidgetAssets(doc).then(function () {
+
+                window.django.jQuery(content)
+                    .find('.admin-autocomplete')
+                    .not('[name*=__prefix__]')
+                    .not('.select2-hidden-accessible')
+                    .djangoAdminSelect2();
+
+            }).catch(function (error) {
+
+                console.error('Bshop Add Popup: search box could not start:', error);
+
+            });
+
+        }
+
+
+
+        /*
          * OPEN POPUP
          */
 
@@ -1064,6 +1195,9 @@ document.addEventListener(
 
 
                     setupPopupForm();
+
+
+                    activatePopupWidgets(doc);
 
 
                 }
@@ -1351,6 +1485,9 @@ document.addEventListener(
 
 
                             setupPopupForm();
+
+
+                            activatePopupWidgets(doc);
 
 
                         }

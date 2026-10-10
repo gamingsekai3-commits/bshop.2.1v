@@ -502,7 +502,7 @@ class ProductAdmin(ActiveStatusAdmin):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         # Called by the slider's product search box (autocomplete): offer only active products.
         if request.GET.get('model_name') == 'heroslide':
-            queryset = queryset.filter(is_active=True)
+            queryset = queryset.filter(is_active=True).order_by('name', 'pk')   # stable order for paging
         return queryset, use_distinct
 
     def get_queryset(self, request):
