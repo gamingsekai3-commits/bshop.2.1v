@@ -19,6 +19,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from urllib.parse import urlencode
 
+from django.contrib.auth import get_user_model
 from django.contrib.humanize.templatetags.humanize import intcomma
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce, NullIf, TruncDate
@@ -32,7 +33,7 @@ from django.utils import timezone
 
 from cart.models import Order, OrderItem
 from .barcode import code128c_svg
-from .models import Customer, Product, StockEntry
+from .models import Product, StockEntry
 from .sorting import apply_sort_and_period
 from .templatetags.dashboard_stats import SHOP_TZ
 from .translations import get_language, get_translations, translate_category_name
@@ -579,54 +580,65 @@ def orders_report(site, request):
     }, note_key='admin_report_note')
 
 
+def _contact(user):
+    """(phone, address) for any account - customer, admin/staff or driver -
+    taken from whichever profile has it."""
+    profiles = [getattr(user, n, None) for n in ('customer_profile', 'employee_profile', 'driver_profile')]
+    phone = next((p.phone for p in profiles if p is not None and getattr(p, 'phone', '')), '')
+    address = next((p.address for p in profiles if p is not None and getattr(p, 'address', '')), '')
+    return phone, address
+
+
 def customers_report(site, request):
-    """Хэрэглэгч: every customer with their orders and spending in the period."""
+    """Хэрэглэгч: every account that bought something in the period, with
+    their orders and spending. Admins/staff and drivers count too - they can
+    order like anyone else, so this works from the User, not the Customer table."""
     T = get_translations(request)
     date_from, date_to = _date_range(request)
     start, end = _bounds(date_from, date_to)
     # Positive filter (status IN ...) instead of exclude(): negating across a
     # multi-valued relation makes Django build a subquery per customer.
     counted = Q(
-        user__orders__created_at__gte=start, user__orders__created_at__lt=end,
-        user__orders__status__in=[
+        orders__created_at__gte=start, orders__created_at__lt=end,
+        orders__status__in=[
             Order.STATUS_PENDING, Order.STATUS_CONFIRMED, Order.STATUS_DELIVERED],
     )
     customers = list(
-        Customer.objects.select_related('user')
+        get_user_model().objects
+        .select_related('customer_profile', 'employee_profile', 'driver_profile')
         .annotate(
-            orders=Count('user__orders', filter=counted, distinct=True),
+            order_count=Count('orders', filter=counted, distinct=True),
             spent=Sum(
                 ExpressionWrapper(
-                    F('user__orders__items__price') * F('user__orders__items__quantity'),
+                    F('orders__items__price') * F('orders__items__quantity'),
                     output_field=DecimalField(max_digits=14, decimal_places=2)),
-                filter=counted & Q(user__orders__status=Order.STATUS_DELIVERED)),
-            last_order=Max('user__orders__created_at', filter=counted),
+                filter=counted & Q(orders__status=Order.STATUS_DELIVERED)),
+            last_order=Max('orders__created_at', filter=counted),
         )
-        .order_by(F('spent').desc(nulls_last=True), 'user__username')
+        # Only accounts that actually bought something in the period.
+        .filter(order_count__gt=0)
+        .order_by(F('spent').desc(nulls_last=True), 'username')
     )
 
-    def _who(c, text):
-        return Link(text, _detail_url(request, 'report_customer_detail', c.pk)) if text else text
+    def _who(u, text):
+        return Link(text, _detail_url(request, 'report_customer_detail', u.pk)) if text else text
 
     rows = [(
-        _who(c, c.user.username), _who(c, c.user.get_full_name()), c.phone, c.orders, c.spent or 0,
-        T['admin_active'] if c.is_active else T['admin_inactive'], c.last_order,
-    ) for c in customers]
-    buyers = sum(1 for c in customers if c.orders)
-    who = lambda c: c.user.get_full_name() or c.user.username
+        _who(u, u.username), _who(u, u.get_full_name()), _contact(u)[0], u.order_count, u.spent or 0,
+        T['admin_active'] if u.is_active else T['admin_inactive'], u.last_order,
+    ) for u in customers]
+    who = lambda u: u.get_full_name() or u.username
     nm, orders_head = T['admin_col_name'], T['admin_orders']
 
     return _render(site, request, 'admin_report_customers', {
         'summary': [
             (T['admin_total_customers'], len(customers), Detail(
                 nm, T['admin_col_status'],
-                [(who(c), T['admin_active'] if c.is_active else T['admin_inactive']) for c in customers])),
-            (T['admin_active'], sum(1 for c in customers if c.is_active), Detail(
-                nm, orders_head, [(who(c), c.orders) for c in customers if c.is_active])),
-            (T['admin_report_buyers'], buyers, Detail(
-                nm, orders_head, [(who(c), c.orders) for c in customers if c.orders])),
-            (T['admin_revenue'], sum(c.spent or 0 for c in customers), Detail(
-                nm, T['admin_report_spent'], [(who(c), c.spent) for c in customers if c.spent])),
+                [(who(u), T['admin_active'] if u.is_active else T['admin_inactive']) for u in customers])),
+            (T['admin_active'], sum(1 for u in customers if u.is_active), Detail(
+                nm, orders_head, [(who(u), u.order_count) for u in customers if u.is_active])),
+            (T['admin_revenue'], sum(u.spent or 0 for u in customers), Detail(
+                nm, T['admin_report_spent'], [(who(u), u.spent) for u in customers if u.spent])),
         ],
         'columns': [
             (T['admin_report_username'], False, NO_FILTER, NO_SORT),
@@ -724,13 +736,15 @@ def product_detail(site, request, pk):
 
 def customer_detail(site, request, pk):
     T = get_translations(request)
-    customer = get_object_or_404(Customer.objects.select_related('user'), pk=pk)
+    # pk is the User id: customers, admins and drivers can all have orders.
+    user = get_object_or_404(
+        get_user_model().objects.select_related('customer_profile', 'employee_profile', 'driver_profile'), pk=pk)
     date_from, date_to = _date_range(request)
     start, end = _bounds(date_from, date_to)
     # Same statuses the customers report counts (cancelled orders excluded).
     orders = list(
         Order.objects.filter(
-            user=customer.user, created_at__gte=start, created_at__lt=end,
+            user=user, created_at__gte=start, created_at__lt=end,
             status__in=[Order.STATUS_PENDING, Order.STATUS_CONFIRMED, Order.STATUS_DELIVERED],
         ).prefetch_related('items__product').order_by('-created_at')
     )
@@ -759,12 +773,12 @@ def customer_detail(site, request, pk):
             'name': o.name, 'phone': o.phone, 'address': o.address, 'items': items,
             'subtotal': _money(subtotal), 'tax': _money(tax), 'total': _money(subtotal + tax),
         })
-    user = customer.user
+    phone, address = _contact(user)
     info = [
         (T['admin_report_username'], user.username),
         (T['admin_col_name'], user.get_full_name() or '—'),
-        (T['customer_phone'], customer.phone or '—'),
-        (T['rd_address'], customer.address or '—'),
+        (T['customer_phone'], phone or '—'),
+        (T['rd_address'], address or '—'),
     ]
     return TemplateResponse(request, 'admin/report_detail_customer.html', {
         'T': T, 'info': info, 'orders': order_rows,
