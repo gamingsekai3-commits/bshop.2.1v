@@ -19,3 +19,12 @@ def position_name(name, lang):
     """Usage: {{ employee.employee_profile.position|position_name:LANG }}"""
     from store.translations import translate_position
     return translate_position(name, lang)
+
+
+@register.filter
+def positions_name(employee, lang):
+    """Usage: {{ employee.employee_profile|positions_name:LANG }} -> "Admin, Driver"."""
+    from store.translations import translate_position
+    if employee is None:
+        return ''
+    return ', '.join(translate_position(p, lang) for p in employee.position_list)

@@ -49,11 +49,11 @@ class Driver(models.Model):
     def display_name(self):
         return self.user.get_full_name() or self.user.username
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        if self.user_id and self.user.is_active != self.is_active:
-            self.user.is_active = self.is_active
-            self.user.save(update_fields=['is_active'])
+    # NOTE: this used to copy is_active onto the login. A person can now hold
+    # several positions (e.g. Admin + Хүргэгч), so switching only the driver
+    # role off must not lock them out of everything. The login is switched by
+    # the Employee row instead (see delivery/signals.py: a driver who is not
+    # also staff still gets their login blocked, exactly as before).
 
     def refresh_status(self):
         """OFFLINE / BUSY / ONLINE-ийг is_online болон идэвхтэй хүргэлтээс тооцно."""

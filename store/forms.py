@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
-from .models import Product, Category, Customer, Employee
+from .models import Product, Category, Customer, Employee, canonical_position
 from .translations import TRANSLATIONS, DEFAULT_LANGUAGE, active_language, lazy_position, lazy_t
 
 # Ажилтны албан тушаалын сонголтууд (dropdown). Утга нь Employee.position-д текстээр хадгалагдана.
@@ -20,6 +20,31 @@ def position_choices_with(current=''):
     if current and current not in [c[0] for c in choices]:
         choices.append((current, lazy_position(current)))
     return choices
+
+
+def position_choices_for(current=()):
+    """Checkbox choices for the position picker. Old values that are not in the
+    standard list are added so they are not lost when the form is saved."""
+    choices = list(POSITION_CHOICES[1:])
+    known = [c[0] for c in choices]
+    for value in current:
+        value = canonical_position(value)
+        if value and value not in known:
+            choices.append((value, lazy_position(value)))
+            known.append(value)
+    return choices
+
+
+class PositionsField(forms.MultipleChoiceField):
+    """One or more positions as checkboxes (a person can be Admin and Driver)."""
+    widget = forms.CheckboxSelectMultiple
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('choices', POSITION_CHOICES[1:])
+        kwargs.setdefault('label', lazy_t('table_position'))
+        kwargs.setdefault('help_text', lazy_t('ws_positions_help'))
+        kwargs.setdefault('error_messages', {'required': lazy_t('ws_positions_required')})
+        super().__init__(**kwargs)
 
 
 class RegisterForm(UserCreationForm):
@@ -59,7 +84,7 @@ class EmployeeForm(UserCreationForm):
     email = forms.EmailField(label="", required=True, widget=forms.EmailInput(attrs={'class': 'form-control'}))
     first_name = forms.CharField(label="", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     last_name = forms.CharField(label="", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    position = forms.ChoiceField(label="", choices=POSITION_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    positions = PositionsField(required=True)
     phone = forms.CharField(label="", max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
     class Meta:
@@ -100,9 +125,13 @@ class EmployeeForm(UserCreationForm):
         if commit:
             user.save()
             employee = user.employee_profile
-            employee.position = self.cleaned_data.get('position', '') or employee.position
             employee.phone = self.cleaned_data.get('phone', '')
             employee.save()
+            # The positions decide which sites this person can open: Admin /
+            # Operator switch on the admin site (is_staff stays True or is
+            # switched off), Хүргэгч switches on the driver site. A person can
+            # hold several at once.
+            employee.set_positions(self.cleaned_data['positions'])
         return user
 
 
@@ -126,22 +155,23 @@ class CustomerProfileForm(forms.ModelForm):
 
 
 class EmployeeProfileForm(forms.ModelForm):
-    """Lets a logged-in employee edit their own phone number and position."""
-    position = forms.ChoiceField(choices=POSITION_CHOICES[1:], widget=forms.Select(attrs={'class': 'form-select'}))
+    """Lets a logged-in employee edit their own phone number.
 
+    Positions are NOT editable here: they decide which sites a person can open
+    (admin site / driver site), so only an admin may change them, from the
+    Employees page in the admin panel.
+    """
     class Meta:
         model = Employee
-        fields = ['phone', 'position']
+        fields = ['phone']
         widgets = {
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, lang=DEFAULT_LANGUAGE, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['position'].choices = position_choices_with(getattr(self.instance, 'position', ''))
         t = TRANSLATIONS.get(lang, TRANSLATIONS[DEFAULT_LANGUAGE])
         self.fields['phone'].label = t['phone_placeholder']
-        self.fields['position'].label = t['table_position']
 
 
 class ProductForm(forms.ModelForm):

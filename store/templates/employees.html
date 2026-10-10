@@ -31,7 +31,7 @@
                     <td>{{ employee.username }}</td>
                     <td>{{ employee.first_name }} {{ employee.last_name }}</td>
                     <td>{{ employee.email }}</td>
-                    <td>{{ employee.employee_profile.position|position_name:LANG }}</td>
+                    <td>{{ employee.employee_profile|positions_name:LANG }}</td>
                     <td>{{ employee.employee_profile.phone }}</td>
                     <td>
                         {% if employee.is_superuser %}

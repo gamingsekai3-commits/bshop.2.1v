@@ -570,6 +570,18 @@ TRANSLATIONS = {
         'dl_e_bad_action': 'Буруу үйлдэл.',
         'dl_e_state_changed': 'Хүргэлтийн төлөв өөрчлөгдсөн байна. Хуудсаа шинэчилнэ үү.',
         'dl_e_reason': 'Амжилтгүй болсон шалтгаанаа сонгоно уу.',
+
+        # Workspaces (admin site / driver site chooser)
+        'ws_admin': 'Админ сайт',
+        'ws_driver': 'Хүргэгчийн сайт',
+        'ws_admin_desc': 'Бараа, захиалга, ажилтан, тайлан удирдах',
+        'ws_driver_desc': 'Надад оноогдсон хүргэлтүүд',
+        'ws_choose_title': 'Орох сайтаа сонгоно уу',
+        'ws_choose_text': 'Танд хэд хэдэн албан тушаал байгаа тул аль сайт руу орохоо сонгоно уу.',
+        'ws_open': 'Орох',
+        'ws_switch': 'Сайт солих',
+        'ws_positions_help': 'Хэд хэдэн албан тушаал сонгож болно. Админ / Оператор нь админ сайтад, Хүргэгч нь хүргэгчийн сайтад орох эрх олгоно.',
+        'ws_positions_required': 'Дор хаяж нэг албан тушаал сонгоно уу.',
     },
 
     'en': {
@@ -1063,6 +1075,18 @@ TRANSLATIONS = {
         'dl_e_bad_action': 'Invalid action.',
         'dl_e_state_changed': 'The delivery status has changed. Please refresh the page.',
         'dl_e_reason': 'Please choose a failure reason.',
+
+        # Workspaces (admin site / driver site chooser)
+        'ws_admin': 'Admin site',
+        'ws_driver': 'Driver site',
+        'ws_admin_desc': 'Manage products, orders, staff and reports',
+        'ws_driver_desc': 'Deliveries assigned to me',
+        'ws_choose_title': 'Choose where to go',
+        'ws_choose_text': 'You hold more than one position, so pick which site you want to open.',
+        'ws_open': 'Open',
+        'ws_switch': 'Switch site',
+        'ws_positions_help': 'You can pick several positions. Admin / Operator give access to the admin site, Driver gives access to the driver site.',
+        'ws_positions_required': 'Select at least one position.',
     },
 }
 

@@ -22,6 +22,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from .forms import RegisterForm, ProductForm, EmployeeForm, CustomerProfileForm, EmployeeProfileForm
 from .translations import t, get_language, get_translations, AVAILABLE_LANGUAGES, COOKIE_NAME
+from .workspaces import get_workspaces, landing_redirect, workspace_url
 from .search_utils import search_products, correct_query, suggest
 from .sorting import apply_sort_and_period
 from django.contrib.admin.sites import site as admin_site
@@ -101,19 +102,28 @@ def login_user(request):
         if user is not None:
             login(request, user)
             messages.success(request, t(request, 'msg_login_success'))
-            if user.is_staff or user.is_superuser:
-                return redirect('/admin/')
-            # Хүргэгч бол шууд хүргэгчийн app руу (delivery/ нь store-оос хамаарахгүй
-            # тул импортгүйгээр related_name-ээр шалгана).
-            driver = getattr(user, 'driver_profile', None)
-            if driver is not None and driver.is_active:
-                return redirect('delivery:dashboard')
-            return redirect('home')
+            # Customers: unchanged (shop home). Staff: one site -> straight in,
+            # two sites (e.g. Admin + Driver) -> the "which site?" chooser.
+            return landing_redirect(user)
         else:
             messages.error(request, t(request, 'msg_login_failed'))
             return redirect('login')
     else:
         return render(request, 'login.html', {})
+
+@login_required
+def choose_workspace(request):
+    """Shown to someone who can open more than one site (e.g. holds both the
+    Admin and Хүргэгч positions). One site -> straight in; none -> shop home."""
+    spaces = get_workspaces(request.user)
+    if not spaces:
+        return redirect('home')
+    if len(spaces) == 1:
+        return redirect(workspace_url(spaces[0]))
+    return render(request, 'choose_workspace.html', {
+        'workspaces': [{'key': w.key, 'label': w.label, 'url': workspace_url(w)} for w in spaces],
+    })
+
 
 def logout_user(request):
     logout(request)
@@ -157,12 +167,13 @@ def profile(request):
             messages.error(request, t(request, 'msg_form_invalid'))
     else:
         form = form_class(instance=instance, lang=lang)
-    return render(request, 'profile.html', {'form': form})
+    positions = instance.position_list if request.user.is_staff else []
+    return render(request, 'profile.html', {'form': form, 'positions': positions})
 
 
 @staff_required
 def employees(request):
-    employees = User.objects.filter(Q(is_staff=True) | Q(driver_profile__isnull=False)).select_related('employee_profile').order_by('username')
+    employees = User.objects.filter(Q(is_staff=True) | Q(driver_profile__isnull=False)).select_related('employee_profile').prefetch_related('employee_profile__positions').order_by('username')
     return render(request, 'employees.html', {'employees': employees})
 
 

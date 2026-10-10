@@ -1,6 +1,7 @@
 {% extends "admin/base.html" %}
 {% load static %}
 {% load i18n %}
+{% load workspace_extras %}
 
 {% block title %}{{ title }} | {{ T.admin_site_title }}{% endblock %}
 
@@ -180,6 +181,16 @@ admin/js/theme.js finds buttons by that class and wires up the switching.
             <a class="admin-profile-item" href="{% url 'admin:password_change' %}">
                 <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 11.5a3.5 3.5 0 1 1 3.163-5H14L15.5 8 14 9.5l-1-1-1 1-1-1-1 1-1-1-1 1H6.663a3.5 3.5 0 0 1-3.163 2zM2.5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span>
                 {% translate 'Change password' %}
+            </a>
+        </li>
+        {% endif %}
+
+        {% user_workspaces as ws_list %}
+        {% if ws_list|length > 1 %}
+        <li>
+            <a class="admin-profile-item" href="{% url 'choose_workspace' %}">
+                <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z"/></svg></span>
+                {{ T.ws_switch }}
             </a>
         </li>
         {% endif %}

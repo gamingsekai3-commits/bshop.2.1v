@@ -1,0 +1,1206 @@
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/delivery/migrations/0005_driver_positions.py bshop.2.1v/delivery/migrations/0005_driver_positions.py
+--- /tmp/orig/bshop.2.1v/delivery/migrations/0005_driver_positions.py	1970-01-01 00:00:00.000000000 +0000
++++ bshop.2.1v/delivery/migrations/0005_driver_positions.py	2026-10-10 08:38:59.782703107 +0000
+@@ -0,0 +1,28 @@
++from django.db import migrations
++
++
++def add_driver_positions(apps, schema_editor):
++    """Every active driver gets the "Хүргэгч" position row, so the employee
++    form shows the box ticked. Without this, an existing Admin who is also a
++    driver would lose the driver site the first time their form is saved."""
++    Driver = apps.get_model('delivery', 'Driver')
++    Employee = apps.get_model('store', 'Employee')
++    EmployeePosition = apps.get_model('store', 'EmployeePosition')
++    for driver in Driver.objects.filter(is_active=True):
++        employee, _ = Employee.objects.get_or_create(
++            user_id=driver.user_id,
++            defaults={'position': 'Хүргэгч', 'phone': driver.phone, 'is_active': driver.is_active},
++        )
++        EmployeePosition.objects.get_or_create(employee=employee, position='Хүргэгч')
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('delivery', '0004_delivery_unloaded_at'),
++        ('store', '0022_employee_positions'),
++    ]
++
++    operations = [
++        migrations.RunPython(add_driver_positions, migrations.RunPython.noop),
++    ]
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/delivery/models.py bshop.2.1v/delivery/models.py
+--- /tmp/orig/bshop.2.1v/delivery/models.py	2026-10-09 09:49:56.000000000 +0000
++++ bshop.2.1v/delivery/models.py	2026-10-10 08:38:38.584735756 +0000
+@@ -49,11 +49,11 @@
+     def display_name(self):
+         return self.user.get_full_name() or self.user.username
+ 
+-    def save(self, *args, **kwargs):
+-        super().save(*args, **kwargs)
+-        if self.user_id and self.user.is_active != self.is_active:
+-            self.user.is_active = self.is_active
+-            self.user.save(update_fields=['is_active'])
++    # NOTE: this used to copy is_active onto the login. A person can now hold
++    # several positions (e.g. Admin + Хүргэгч), so switching only the driver
++    # role off must not lock them out of everything. The login is switched by
++    # the Employee row instead (see delivery/signals.py: a driver who is not
++    # also staff still gets their login blocked, exactly as before).
+ 
+     def refresh_status(self):
+         """OFFLINE / BUSY / ONLINE-ийг is_online болон идэвхтэй хүргэлтээс тооцно."""
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/delivery/signals.py bshop.2.1v/delivery/signals.py
+--- /tmp/orig/bshop.2.1v/delivery/signals.py	2026-10-09 09:49:56.000000000 +0000
++++ bshop.2.1v/delivery/signals.py	2026-10-10 08:38:38.585200869 +0000
+@@ -1,6 +1,7 @@
+-from django.db.models.signals import post_save
++from django.db.models.signals import post_delete, post_save
+ from django.dispatch import receiver
+ 
++from .models import Driver
+ from .services import create_delivery_for_order
+ 
+ 
+@@ -12,28 +13,67 @@
+         create_delivery_for_order(instance)
+ 
+ 
+-DRIVER_POSITION = 'Хүргэгч'   # store.forms.POSITION_CHOICES-ийн утгатай ижил
++DRIVER_POSITION = 'Хүргэгч'   # store.models.POSITION_DRIVER-тэй ижил
+ 
+ 
+ @receiver(post_save, sender='delivery.Driver')
+ def driver_to_employee(sender, instance, **kwargs):
+-    """Хүргэгч бүр store-ийн Ажилтны жагсаалтад (Employee, албан тушаал = Хүргэгч) орно.
+-    Хүргэгчийн утас, идэвхтэй эсэх өөрчлөгдөхөд Ажилтны мөр дагаж шинэчлэгдэнэ.
+-    Нэвтрэх эрх (is_staff) өөрчлөгдөхгүй тул хүргэгч админ руу орохгүй."""
+-    from store.models import Employee
++    """Хүргэгч бүр store-ийн Ажилтны жагсаалтад (Employee) орж, "Хүргэгч" албан тушаалтай болно.
+ 
++    * Хүргэгчийн утас өөрчлөгдөхөд Ажилтны мөр дагаж шинэчлэгдэнэ.
++    * Зөвхөн хүргэгч (админ эрхгүй) хүнийг идэвхгүй болговол нэвтрэх эрх нь хаагдана (өмнөх шигээ).
++      Харин админ эрхтэй хүнд хүргэгчийн үүргийг унтраахад нэвтрэх эрх нь хаагдахгүй, зөвхөн
++      хүргэгчийн сайт хаагдана.
++    * is_staff өөрчлөгдөхгүй тул хүргэгч админ руу орохгүй.
++    """
++    from django.contrib.auth import get_user_model
++    from store.models import Employee, EmployeePosition
++
++    user_is_staff = get_user_model().objects.filter(pk=instance.user_id, is_staff=True).exists()
+     employee, created = Employee.objects.get_or_create(
+         user=instance.user,
+         defaults={'position': DRIVER_POSITION, 'phone': instance.phone, 'is_active': instance.is_active},
+     )
+-    if created:
++    if not created:
++        changed = []
++        if employee.phone != instance.phone:
++            employee.phone = instance.phone
++            changed.append('phone')
++        if employee.is_active != instance.is_active and not user_is_staff:
++            employee.is_active = instance.is_active
++            changed.append('is_active')
++        if changed:
++            employee.save(update_fields=changed)
++
++    # The "Хүргэгч" position mirrors "driver role is switched on".
++    if instance.is_active:
++        EmployeePosition.objects.get_or_create(employee=employee, position=DRIVER_POSITION)
++    else:
++        EmployeePosition.objects.filter(employee=employee, position=DRIVER_POSITION).delete()
++
++
++def _sync_driver_role(sender, instance, **kwargs):
++    """Admin ticks / unticks "Хүргэгч" on the employee form -> the driver
++    profile is created or switched on / off to match."""
++    from store.models import Employee, EmployeePosition, canonical_position
++
++    if canonical_position(instance.position) != DRIVER_POSITION:
+         return
+-    changed = []
+-    if employee.phone != instance.phone:
+-        employee.phone = instance.phone
+-        changed.append('phone')
+-    if employee.is_active != instance.is_active:
+-        employee.is_active = instance.is_active
+-        changed.append('is_active')
+-    if changed:
+-        employee.save(update_fields=changed)
+\ No newline at end of file
++    employee = Employee.objects.select_related('user').filter(pk=instance.employee_id).first()
++    if employee is None:                      # the employee row is being deleted
++        return
++    wants = EmployeePosition.objects.filter(employee=employee, position=DRIVER_POSITION).exists()
++    driver = Driver.objects.filter(user_id=employee.user_id).first()
++    if wants:
++        if driver is None:
++            Driver.objects.create(user=employee.user, phone=(employee.phone or '')[:20], is_active=True)
++        elif not driver.is_active:
++            driver.is_active = True
++            driver.save()
++    elif driver is not None and driver.is_active:
++        driver.is_active = False
++        driver.save()
++
++
++post_save.connect(_sync_driver_role, sender='store.EmployeePosition', dispatch_uid='dl_position_saved')
++post_delete.connect(_sync_driver_role, sender='store.EmployeePosition', dispatch_uid='dl_position_deleted')
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/delivery/templates/delivery/base.html bshop.2.1v/delivery/templates/delivery/base.html
+--- /tmp/orig/bshop.2.1v/delivery/templates/delivery/base.html	2026-10-09 09:49:58.000000000 +0000
++++ bshop.2.1v/delivery/templates/delivery/base.html	2026-10-10 08:38:47.578280745 +0000
+@@ -1,4 +1,4 @@
+-{% load static %}<!DOCTYPE html>
++{% load static %}{% load workspace_extras %}<!DOCTYPE html>
+ <html lang="mn" data-theme="light">
+ <head>
+     <meta charset="utf-8">
+@@ -18,6 +18,7 @@
+     <a class="brand" href="{% url 'delivery:board' %}"><span class="mark">BSHOP</span> Хүргэгч</a>
+     <div class="tools">
+         {% if driver %}<span class="who">{{ driver.display_name }}<span class="dot dot-{{ driver.current_status }}" title="{{ driver.get_current_status_display }}"></span></span>{% endif %}
++        {% user_workspaces as ws_list %}{% if ws_list|length > 1 %}<a class="who" href="{% url 'choose_workspace' %}">⇄ {{ T.ws_switch }}</a>{% endif %}
+         <button type="button" class="icon-btn theme-toggle" aria-label="Theme">◐</button>
+     </div>
+ </header>
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/delivery/views.py bshop.2.1v/delivery/views.py
+--- /tmp/orig/bshop.2.1v/delivery/views.py	2026-10-09 09:49:56.000000000 +0000
++++ bshop.2.1v/delivery/views.py	2026-10-10 08:38:38.585722061 +0000
+@@ -11,6 +11,8 @@
+ from django.utils.http import url_has_allowed_host_and_scheme
+ from django.views.decorators.http import require_POST
+ 
++from store.workspaces import landing_redirect
++
+ from . import services
+ from .forms import DriverLoginForm, FailDeliveryForm
+ from .models import Delivery, Driver
+@@ -43,7 +45,8 @@
+         next_url = request.POST.get('next') or request.GET.get('next') or ''
+         if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+             return redirect(next_url)
+-        return redirect('delivery:board')
++        # A person who is also an admin (two positions) picks which site to open.
++        return landing_redirect(form.get_user())
+     return render(request, 'delivery/login.html', {'form': form, 'next': request.GET.get('next', '')})
+ 
+ 
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/admin.py bshop.2.1v/store/admin.py
+--- /tmp/orig/bshop.2.1v/store/admin.py	2026-10-10 15:40:32.000000000 +0000
++++ bshop.2.1v/store/admin.py	2026-10-10 08:37:51.692196975 +0000
+@@ -8,9 +8,9 @@
+ from django.utils.decorators import method_decorator
+ from django.utils.html import format_html
+ from django.views.decorators.clickjacking import xframe_options_sameorigin
+-from .forms import POSITION_CHOICES, ProductForm, position_choices_with
++from .forms import PositionsField, ProductForm, position_choices_for
+ 
+-from .models import (HERO_MAX_SLIDES, HERO_MAX_UPLOAD_MB, HERO_MIN_SIZE, Category, Customer, Employee,
++from .models import (HERO_MAX_SLIDES, canonical_position, HERO_MAX_UPLOAD_MB, HERO_MIN_SIZE, Category, Customer, Employee,
+                      HeroSlide, Product, ProductOption, StockEntry)
+ from .pricing import margin_percent, selling_price
+ from .stock_rules import low_q, out_q
+@@ -52,7 +52,9 @@
+ 
+ 
+ def _lab_position(raw, T, en):
+-    return translate_position(raw, 'en' if en else 'mn')
++    # The stored text can be a summary of several positions ("Admin, Хүргэгч").
++    lang = 'en' if en else 'mn'
++    return ', '.join(translate_position(part.strip(), lang) for part in str(raw or '').split(',') if part.strip())
+ 
+ 
+ def _lab_stock_state(raw, T, en):
+@@ -343,15 +345,23 @@
+ 
+ 
+ class EmployeeAdminForm(forms.ModelForm):
+-    position = forms.ChoiceField(choices=POSITION_CHOICES[1:], label=lazy_t('f_position'))
++    # Several positions per person. Ticking Admin / Operator lets them into the
++    # admin site, ticking Хүргэгч lets them into the driver site; someone with
++    # both gets a "which site?" screen after signing in.
++    positions = PositionsField(required=True)
+ 
+     class Meta:
+         model = Employee
+-        fields = '__all__'
++        exclude = ['position']
+ 
+     def __init__(self, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+-        self.fields['position'].choices = position_choices_with(getattr(self.instance, 'position', ''))
++        current = self.instance.position_list if self.instance.pk else []
++        self.fields['positions'].choices = position_choices_for(current)
++        self.initial['positions'] = [
++            c[0] for c in self.fields['positions'].choices if c[0] in {canonical_position(p) for p in current}
++        ]
++        self.order_fields(['user', 'positions', 'phone', 'is_active'])
+ 
+ 
+ @admin.register(Employee)
+@@ -368,7 +378,16 @@
+     @admin.display(description=lazy_t('f_position'), ordering='position')
+     def position_display(self, obj):
+         from .translations import active_language
+-        return translate_position(obj.position, active_language())
++        lang = active_language()
++        return ', '.join(translate_position(p, lang) for p in obj.position_list)
++
++    def get_queryset(self, request):
++        return super().get_queryset(request).prefetch_related('positions')
++
++    def save_related(self, request, form, formsets, change):
++        super().save_related(request, form, formsets, change)
++        # The employee row is saved by now, so the positions can be attached.
++        form.instance.set_positions(form.cleaned_data['positions'])
+ 
+     # A plain 'user' column would sort by the user's id; this sorts by name.
+     @admin.display(description=lazy_t('table_username'), ordering='user__username')
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/admin_site.py bshop.2.1v/store/admin_site.py
+--- /tmp/orig/bshop.2.1v/store/admin_site.py	2026-10-09 13:43:52.000000000 +0000
++++ bshop.2.1v/store/admin_site.py	2026-10-10 08:40:05.106614418 +0000
+@@ -12,10 +12,14 @@
+ 
+ from django.contrib.admin import AdminSite
+ from django.contrib.admin.apps import AdminConfig
++from django.http import HttpResponseRedirect
+ from django.shortcuts import redirect
++from django.utils.decorators import method_decorator
++from django.views.decorators.cache import never_cache
+ from django.urls import path, reverse, reverse_lazy
+ 
+ from .translations import lazy_t
++from .workspaces import get_workspaces
+ 
+ # app label -> key in translations.py
+ APP_LABELS = {
+@@ -64,6 +68,20 @@
+     site_header = lazy_t('admin_site_header')
+     index_title = lazy_t('admin_index_title')
+ 
++    @method_decorator(never_cache)
++    def login(self, request, extra_context=None):
++        """Stock admin login, plus: someone who can open more than one site
++        (Admin + Хүргэгч) lands on the "which site?" screen instead of being
++        sent straight to the admin. A deep link (?next=/admin/some/page/) is
++        still honoured."""
++        response = super().login(request, extra_context)
++        if (request.method == 'POST' and request.user.is_authenticated
++                and isinstance(response, HttpResponseRedirect)
++                and response.url == reverse('admin:index', current_app=self.name)
++                and len(get_workspaces(request.user)) > 1):
++            return redirect('choose_workspace')
++        return response
++
+     def get_urls(self):
+         # Report pages live under /admin/reports/... and go through
+         # admin_view(), so they need a staff login like every other admin
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/forms.py bshop.2.1v/store/forms.py
+--- /tmp/orig/bshop.2.1v/store/forms.py	2026-10-09 09:50:32.000000000 +0000
++++ bshop.2.1v/store/forms.py	2026-10-10 08:37:42.586967425 +0000
+@@ -1,7 +1,7 @@
+ from django.contrib.auth.models import User
+ from django.contrib.auth.forms import UserCreationForm
+ from django import forms
+-from .models import Product, Category, Customer, Employee
++from .models import Product, Category, Customer, Employee, canonical_position
+ from .translations import TRANSLATIONS, DEFAULT_LANGUAGE, active_language, lazy_position, lazy_t
+ 
+ # Ажилтны албан тушаалын сонголтууд (dropdown). Утга нь Employee.position-д текстээр хадгалагдана.
+@@ -22,6 +22,31 @@
+     return choices
+ 
+ 
++def position_choices_for(current=()):
++    """Checkbox choices for the position picker. Old values that are not in the
++    standard list are added so they are not lost when the form is saved."""
++    choices = list(POSITION_CHOICES[1:])
++    known = [c[0] for c in choices]
++    for value in current:
++        value = canonical_position(value)
++        if value and value not in known:
++            choices.append((value, lazy_position(value)))
++            known.append(value)
++    return choices
++
++
++class PositionsField(forms.MultipleChoiceField):
++    """One or more positions as checkboxes (a person can be Admin and Driver)."""
++    widget = forms.CheckboxSelectMultiple
++
++    def __init__(self, **kwargs):
++        kwargs.setdefault('choices', POSITION_CHOICES[1:])
++        kwargs.setdefault('label', lazy_t('table_position'))
++        kwargs.setdefault('help_text', lazy_t('ws_positions_help'))
++        kwargs.setdefault('error_messages', {'required': lazy_t('ws_positions_required')})
++        super().__init__(**kwargs)
++
++
+ class RegisterForm(UserCreationForm):
+     email = forms.EmailField(label="", required=True, widget=forms.EmailInput(attrs={'class': 'form-control'}))
+     first_name = forms.CharField(label="", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+@@ -59,7 +84,7 @@
+     email = forms.EmailField(label="", required=True, widget=forms.EmailInput(attrs={'class': 'form-control'}))
+     first_name = forms.CharField(label="", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+     last_name = forms.CharField(label="", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+-    position = forms.ChoiceField(label="", choices=POSITION_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
++    positions = PositionsField(required=True)
+     phone = forms.CharField(label="", max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+ 
+     class Meta:
+@@ -100,9 +125,13 @@
+         if commit:
+             user.save()
+             employee = user.employee_profile
+-            employee.position = self.cleaned_data.get('position', '') or employee.position
+             employee.phone = self.cleaned_data.get('phone', '')
+             employee.save()
++            # The positions decide which sites this person can open: Admin /
++            # Operator switch on the admin site (is_staff stays True or is
++            # switched off), Хүргэгч switches on the driver site. A person can
++            # hold several at once.
++            employee.set_positions(self.cleaned_data['positions'])
+         return user
+ 
+ 
+@@ -126,22 +155,23 @@
+ 
+ 
+ class EmployeeProfileForm(forms.ModelForm):
+-    """Lets a logged-in employee edit their own phone number and position."""
+-    position = forms.ChoiceField(choices=POSITION_CHOICES[1:], widget=forms.Select(attrs={'class': 'form-select'}))
++    """Lets a logged-in employee edit their own phone number.
+ 
++    Positions are NOT editable here: they decide which sites a person can open
++    (admin site / driver site), so only an admin may change them, from the
++    Employees page in the admin panel.
++    """
+     class Meta:
+         model = Employee
+-        fields = ['phone', 'position']
++        fields = ['phone']
+         widgets = {
+             'phone': forms.TextInput(attrs={'class': 'form-control'}),
+         }
+ 
+     def __init__(self, *args, lang=DEFAULT_LANGUAGE, **kwargs):
+         super().__init__(*args, **kwargs)
+-        self.fields['position'].choices = position_choices_with(getattr(self.instance, 'position', ''))
+         t = TRANSLATIONS.get(lang, TRANSLATIONS[DEFAULT_LANGUAGE])
+         self.fields['phone'].label = t['phone_placeholder']
+-        self.fields['position'].label = t['table_position']
+ 
+ 
+ class ProductForm(forms.ModelForm):
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/migrations/0022_employee_positions.py bshop.2.1v/store/migrations/0022_employee_positions.py
+--- /tmp/orig/bshop.2.1v/store/migrations/0022_employee_positions.py	1970-01-01 00:00:00.000000000 +0000
++++ bshop.2.1v/store/migrations/0022_employee_positions.py	2026-10-10 08:38:59.779600048 +0000
+@@ -0,0 +1,49 @@
++# Generated by Django 6.1.1 on 2026-10-10 08:38
++
++import django.db.models.deletion
++from django.db import migrations, models
++
++
++_ALIASES = {
++    'admin': 'Admin', 'админ': 'Admin',
++    'operator': 'Operator', 'оператор': 'Operator',
++    'хүргэгч': 'Хүргэгч', 'driver': 'Хүргэгч', 'courier': 'Хүргэгч',
++}
++
++
++def copy_single_position(apps, schema_editor):
++    """Every employee's existing one-word position becomes their first row in
++    the new table. The old `position` column is left untouched (nothing is
++    deleted), so this is safe to run on production data and to reverse."""
++    Employee = apps.get_model('store', 'Employee')
++    EmployeePosition = apps.get_model('store', 'EmployeePosition')
++    for employee in Employee.objects.all():
++        text = (employee.position or '').strip()
++        if not text:
++            continue
++        EmployeePosition.objects.get_or_create(
++            employee=employee, position=_ALIASES.get(text.casefold(), text),
++        )
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('store', '0021_heroslide_banner_image'),
++    ]
++
++    operations = [
++        migrations.CreateModel(
++            name='EmployeePosition',
++            fields=[
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
++                ('position', models.CharField(max_length=100)),
++                ('employee', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='positions', to='store.employee')),
++            ],
++            options={
++                'ordering': ['id'],
++                'constraints': [models.UniqueConstraint(fields=('employee', 'position'), name='uniq_employee_position')],
++            },
++        ),
++        migrations.RunPython(copy_single_position, migrations.RunPython.noop),
++    ]
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/models.py bshop.2.1v/store/models.py
+--- /tmp/orig/bshop.2.1v/store/models.py	2026-10-09 13:43:52.000000000 +0000
++++ bshop.2.1v/store/models.py	2026-10-10 08:37:01.504123833 +0000
+@@ -1,6 +1,6 @@
+ from django.conf import settings
+ from django.db import models
+-from django.db.models.signals import post_save
++from django.db.models.signals import post_delete, post_save
+ from django.dispatch import receiver
+ from django.contrib.auth.models import User
+ 
+@@ -42,6 +42,32 @@
+         verbose_name_plural = lazy_t('admin_categories')
+ 
+ 
++# ---------------------------------------------------------------------------
++# Job positions. One person can hold several at the same time.
++# ---------------------------------------------------------------------------
++# What a position unlocks:
++#   Admin, Operator -> the admin site   (the auth User gets is_staff)
++#   Хүргэгч (Driver) -> the driver site (a delivery.Driver profile is switched on)
++# Anything else (e.g. the old default "Employee") is only a label.
++POSITION_ADMIN = 'Admin'
++POSITION_OPERATOR = 'Operator'
++POSITION_DRIVER = 'Хүргэгч'
++STAFF_POSITIONS = (POSITION_ADMIN, POSITION_OPERATOR)
++ROLE_POSITIONS = STAFF_POSITIONS + (POSITION_DRIVER,)
++
++_POSITION_ALIASES = {
++    'admin': POSITION_ADMIN, 'админ': POSITION_ADMIN,
++    'operator': POSITION_OPERATOR, 'оператор': POSITION_OPERATOR,
++    'хүргэгч': POSITION_DRIVER, 'driver': POSITION_DRIVER, 'courier': POSITION_DRIVER,
++}
++
++
++def canonical_position(value):
++    """'Админ' / 'admin' -> 'Admin', 'Driver' / 'Courier' -> 'Хүргэгч'. Unknown text is kept as typed."""
++    text = str(value or '').strip()
++    return _POSITION_ALIASES.get(text.casefold(), text)
++
++
+ class Employee(models.Model):
+     """A real, separate table for staff accounts. Linked 1-to-1 to Django's
+     built-in auth User (which still handles login/passwords/permissions) so
+@@ -78,11 +104,91 @@
+     def __str__(self):
+         return self.user.username
+ 
++    # --- positions (several per person) -----------------------------------
++    @property
++    def position_list(self):
++        """Every position this person holds, e.g. ['Admin', 'Хүргэгч'].
++        Falls back to the old single `position` text for rows that have no
++        EmployeePosition yet."""
++        names = [p.position for p in self.positions.all()]
++        if names:
++            return names
++        legacy = (self.position or '').strip()
++        return [legacy] if legacy else []
++
++    def has_position(self, *names):
++        wanted = {canonical_position(n) for n in names}
++        return any(canonical_position(p) in wanted for p in self.position_list)
++
++    def set_positions(self, positions):
++        """Replace this person's positions with `positions`. Adding or removing
++        a row switches the matching access on or off (see refresh_from_positions
++        and delivery/signals.py)."""
++        wanted = []
++        for value in positions or []:
++            name = canonical_position(value)
++            if name and name not in wanted:
++                wanted.append(name)
++        current = {p.position: p for p in self.positions.all()}
++        for name, row in current.items():
++            if name not in wanted:
++                row.delete()
++        for name in wanted:
++            if name not in current:
++                EmployeePosition.objects.create(employee=self, position=name)
++
++    def refresh_from_positions(self):
++        """Called whenever a position row is added/removed.
++
++        * keeps the old `position` column as a readable summary ("Admin, Хүргэгч")
++        * gives or takes away admin-site access (User.is_staff). This only
++          happens when at least one real role (Admin / Operator / Хүргэгч) is
++          among the positions, so an old row that only says "Employee" can
++          never lock someone out by accident. Superusers are never touched.
++        """
++        names = list(self.positions.values_list('position', flat=True))
++        summary = ', '.join(names)
++        if summary != self.position:
++            Employee.objects.filter(pk=self.pk).update(position=summary)
++            self.position = summary
++        if any(n in ROLE_POSITIONS for n in names):
++            should_be_staff = any(n in STAFF_POSITIONS for n in names)
++            user = type(self.user).objects.get(pk=self.user_id)
++            if not user.is_superuser and user.is_staff != should_be_staff:
++                type(user).objects.filter(pk=user.pk).update(is_staff=should_be_staff)
++                self.user.is_staff = should_be_staff
++
+     class Meta:
+         verbose_name = lazy_t('admin_model_employee')
+         verbose_name_plural = lazy_t('admin_employees')
+ 
+ 
++class EmployeePosition(models.Model):
++    """One job position held by one employee. A person with two rows (e.g.
++    Admin + Хүргэгч) can use both the admin site and the driver site."""
++    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='positions')
++    position = models.CharField(max_length=100)
++
++    class Meta:
++        ordering = ['id']
++        constraints = [
++            models.UniqueConstraint(fields=['employee', 'position'], name='uniq_employee_position'),
++        ]
++
++    def __str__(self):
++        return f'{self.employee} - {self.position}'
++
++
++@receiver(post_save, sender=EmployeePosition)
++@receiver(post_delete, sender=EmployeePosition)
++def positions_changed(sender, instance, **kwargs):
++    try:
++        employee = Employee.objects.select_related('user').get(pk=instance.employee_id)
++    except Employee.DoesNotExist:      # the employee itself is being deleted
++        return
++    employee.refresh_from_positions()
++
++
+ class Customer(models.Model):
+     """A real, separate table for customer accounts. Linked 1-to-1 to the
+     built-in auth User the same way Employee is."""
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/templates/choose_workspace.html bshop.2.1v/store/templates/choose_workspace.html
+--- /tmp/orig/bshop.2.1v/store/templates/choose_workspace.html	1970-01-01 00:00:00.000000000 +0000
++++ bshop.2.1v/store/templates/choose_workspace.html	2026-10-10 08:38:04.475659149 +0000
+@@ -0,0 +1,26 @@
++{% extends 'layout.html' %}
++{% block content %}
++<header class="bg-dark-py-5">
++    <div class="container px-4 px-lg-5 my-5">
++        <div class="text-center text-white">
++            <h1 class="display-4 fw-bolder">{{ T.ws_choose_title }}</h1>
++            <p class="lead fw-normal text-white-50 mb-0">{{ T.ws_choose_text }}</p>
++        </div>
++    </div>
++</header>
++<div class="container">
++    <div class="row justify-content-center g-4 my-3">
++        {% for ws in workspaces %}
++        <div class="col-md-5 col-lg-4">
++            <a href="{{ ws.url }}" class="card h-100 text-decoration-none text-reset shadow-sm">
++                <div class="card-body text-center py-5">
++                    <h2 class="h4 mb-2">{{ ws.label }}</h2>
++                    <p class="text-muted mb-4">{% if ws.key == 'admin' %}{{ T.ws_admin_desc }}{% else %}{{ T.ws_driver_desc }}{% endif %}</p>
++                    <span class="btn btn-primary">{{ T.ws_open }}</span>
++                </div>
++            </a>
++        </div>
++        {% endfor %}
++    </div>
++</div>
++{% endblock %}
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/templates/employees.html bshop.2.1v/store/templates/employees.html
+--- /tmp/orig/bshop.2.1v/store/templates/employees.html	2026-10-09 09:50:36.000000000 +0000
++++ bshop.2.1v/store/templates/employees.html	2026-10-10 08:38:04.470347283 +0000
+@@ -31,7 +31,7 @@
+                     <td>{{ employee.username }}</td>
+                     <td>{{ employee.first_name }} {{ employee.last_name }}</td>
+                     <td>{{ employee.email }}</td>
+-                    <td>{{ employee.employee_profile.position|position_name:LANG }}</td>
++                    <td>{{ employee.employee_profile|positions_name:LANG }}</td>
+                     <td>{{ employee.employee_profile.phone }}</td>
+                     <td>
+                         {% if employee.is_superuser %}
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/templates/profile.html bshop.2.1v/store/templates/profile.html
+--- /tmp/orig/bshop.2.1v/store/templates/profile.html	2026-10-09 09:50:36.000000000 +0000
++++ bshop.2.1v/store/templates/profile.html	2026-10-10 08:38:04.470589160 +0000
+@@ -1,6 +1,7 @@
+ {% extends 'layout.html' %}
+ {% load humanize %}
+ {% load static %}
++{% load i18n_extras %}
+ 
+ {% block content %}
+ <header class="bg-dark-py-5">
+@@ -17,6 +18,7 @@
+             <br>
+             <form action="{% url 'profile' %}" method="POST">
+                 {% csrf_token %}
++                {% if positions %}<p><strong>{{ T.table_position }}:</strong> {% for pos in positions %}<span class="badge bg-secondary me-1">{{ pos|position_name:LANG }}</span>{% endfor %}</p>{% endif %}
+                 {{ form.as_p }}
+                 <br><br>
+                 <button type="submit" class="btn btn-primary">{{ T.save_btn }}</button>
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/templatetags/i18n_extras.py bshop.2.1v/store/templatetags/i18n_extras.py
+--- /tmp/orig/bshop.2.1v/store/templatetags/i18n_extras.py	2026-10-09 09:50:36.000000000 +0000
++++ bshop.2.1v/store/templatetags/i18n_extras.py	2026-10-10 08:38:04.470128104 +0000
+@@ -19,3 +19,12 @@
+     """Usage: {{ employee.employee_profile.position|position_name:LANG }}"""
+     from store.translations import translate_position
+     return translate_position(name, lang)
++
++
++@register.filter
++def positions_name(employee, lang):
++    """Usage: {{ employee.employee_profile|positions_name:LANG }} -> "Admin, Driver"."""
++    from store.translations import translate_position
++    if employee is None:
++        return ''
++    return ', '.join(translate_position(p, lang) for p in employee.position_list)
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/templatetags/workspace_extras.py bshop.2.1v/store/templatetags/workspace_extras.py
+--- /tmp/orig/bshop.2.1v/store/templatetags/workspace_extras.py	1970-01-01 00:00:00.000000000 +0000
++++ bshop.2.1v/store/templatetags/workspace_extras.py	2026-10-10 08:38:47.566503063 +0000
+@@ -0,0 +1,14 @@
++from django import template
++
++from store.workspaces import get_workspaces
++
++register = template.Library()
++
++
++@register.simple_tag(takes_context=True)
++def user_workspaces(context):
++    """{% user_workspaces as spaces %} -> the sites this user can open.
++    Looked up only where a template asks for it (admin / driver headers),
++    not on every storefront page."""
++    request = context.get('request')
++    return get_workspaces(request.user) if request is not None else []
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/test_workspaces.py bshop.2.1v/store/test_workspaces.py
+--- /tmp/orig/bshop.2.1v/store/test_workspaces.py	1970-01-01 00:00:00.000000000 +0000
++++ bshop.2.1v/store/test_workspaces.py	2026-10-10 08:40:32.590231238 +0000
+@@ -0,0 +1,305 @@
++"""Several job positions per person, and which site each one can open.
++
++    customer            -> shop login (unchanged)
++    Admin / Operator    -> admin site     (User.is_staff)
++    Хүргэгч (Driver)    -> driver site    (active delivery.Driver)
++    Admin + Хүргэгч     -> either, via a "which site?" screen after login
++"""
++from django.contrib.auth import get_user_model
++from django.test import TestCase
++from django.urls import reverse
++
++from delivery.models import Driver
++
++from .forms import EmployeeForm, EmployeeProfileForm
++from .models import Customer, Employee, EmployeePosition
++from .workspaces import get_workspaces
++
++User = get_user_model()
++PASSWORD = 'Zx9!kLm2#qWe'
++ADMIN, OPERATOR, DRIVER = 'Admin', 'Operator', 'Хүргэгч'
++
++
++def appoint(username, positions):
++    """Create a person the way the real "add employee" form does."""
++    form = EmployeeForm({
++        'username': username, 'email': f'{username}@example.mn', 'phone': '99112233',
++        'password1': PASSWORD, 'password2': PASSWORD, 'positions': positions,
++    })
++    assert form.is_valid(), form.errors
++    return form.save()
++
++
++def reposition(user, positions):
++    Employee.objects.get(user=user).set_positions(positions)
++    return User.objects.get(pk=user.pk)
++
++
++def keys(user):
++    return [w.key for w in get_workspaces(User.objects.get(pk=user.pk))]
++
++
++class AppointingPositionsTests(TestCase):
++    def test_admin_only(self):
++        user = appoint('boss', [ADMIN])
++        self.assertTrue(user.is_staff)
++        self.assertFalse(Driver.objects.filter(user=user).exists())
++        self.assertEqual(keys(user), ['admin'])
++
++    def test_driver_only_is_not_staff(self):
++        user = appoint('dan', [DRIVER])
++        user.refresh_from_db()
++        self.assertFalse(user.is_staff)
++        self.assertTrue(Driver.objects.get(user=user).is_active)
++        self.assertEqual(keys(user), ['driver'])
++        self.assertFalse(Customer.objects.filter(user=user).exists())
++
++    def test_two_positions_give_two_sites(self):
++        user = appoint('both', [ADMIN, DRIVER])
++        user.refresh_from_db()
++        self.assertTrue(user.is_staff)
++        self.assertTrue(Driver.objects.get(user=user).is_active)
++        self.assertEqual(keys(user), ['admin', 'driver'])
++        employee = Employee.objects.get(user=user)
++        self.assertEqual(sorted(employee.position_list), sorted([ADMIN, DRIVER]))
++        self.assertEqual(employee.position, 'Admin, Хүргэгч')       # readable summary of the old column
++
++    def test_at_least_one_position_is_required(self):
++        form = EmployeeForm({'username': 'x', 'email': 'x@x.mn', 'password1': PASSWORD,
++                             'password2': PASSWORD, 'positions': []})
++        self.assertFalse(form.is_valid())
++        self.assertIn('positions', form.errors)
++
++    def test_adding_a_second_position_later(self):
++        user = appoint('later', [ADMIN])
++        user = reposition(user, [ADMIN, DRIVER])
++        self.assertEqual(keys(user), ['admin', 'driver'])
++
++    def test_removing_driver_keeps_admin_and_the_login(self):
++        user = appoint('both', [ADMIN, DRIVER])
++        user = reposition(user, [ADMIN])
++        self.assertTrue(user.is_active)
++        self.assertEqual(keys(user), ['admin'])
++        self.assertFalse(Driver.objects.get(user=user).is_active)
++        self.assertTrue(Employee.objects.get(user=user).is_active)
++
++    def test_removing_admin_keeps_driver(self):
++        user = appoint('both', [ADMIN, DRIVER])
++        user = reposition(user, [DRIVER])
++        self.assertFalse(user.is_staff)
++        self.assertEqual(keys(user), ['driver'])
++
++    def test_driver_position_can_come_back(self):
++        user = appoint('flip', [ADMIN, DRIVER])
++        reposition(user, [ADMIN])
++        user = reposition(user, [ADMIN, DRIVER])
++        self.assertEqual(keys(user), ['admin', 'driver'])
++        self.assertEqual(Driver.objects.filter(user=user).count(), 1)
++
++    def test_superuser_is_never_demoted(self):
++        boss = User.objects.create_superuser('root', 'r@x.mn', PASSWORD)
++        employee = Employee.objects.get(user=boss)
++        employee.set_positions([DRIVER])
++        boss.refresh_from_db()
++        self.assertTrue(boss.is_staff)
++        self.assertTrue(boss.is_superuser)
++
++    def test_label_only_position_never_removes_admin_access(self):
++        """An old row that just says "Employee" must not lock a staff member out."""
++        user = User.objects.create_user('old', password=PASSWORD, is_staff=True)
++        employee = Employee.objects.get(user=user)
++        employee.set_positions(['Employee'])
++        user.refresh_from_db()
++        self.assertTrue(user.is_staff)
++
++    def test_old_names_are_understood(self):
++        """Old rows / imports may say "Админ" or "Courier"; they are stored under the standard names."""
++        user = appoint('names', [OPERATOR])
++        Employee.objects.get(user=user).set_positions(['Админ', 'Courier'])
++        self.assertEqual(sorted(Employee.objects.get(user=user).position_list), sorted([ADMIN, DRIVER]))
++        self.assertEqual(keys(user), ['admin', 'driver'])
++
++    def test_employee_who_left_cannot_log_in_anywhere(self):
++        user = appoint('gone', [ADMIN, DRIVER])
++        employee = Employee.objects.get(user=user)
++        employee.is_active = False
++        employee.save()
++        self.assertEqual(keys(user), [])
++        self.assertFalse(self.client.login(username='gone', password=PASSWORD))
++
++    def test_pure_driver_deactivation_still_blocks_login(self):
++        """Behaviour from before this change: switching a driver off blocks their login."""
++        user = appoint('dan', [DRIVER])
++        driver = Driver.objects.get(user=user)
++        driver.is_active = False
++        driver.save()
++        user.refresh_from_db()
++        self.assertFalse(user.is_active)
++        driver.is_active = True
++        driver.save()
++        user.refresh_from_db()
++        self.assertTrue(user.is_active)
++
++
++class LoginRoutingTests(TestCase):
++    @classmethod
++    def setUpTestData(cls):
++        cls.customer = User.objects.create_user('cust', password=PASSWORD)
++        cls.admin = appoint('adm', [ADMIN])
++        cls.driver = appoint('drv', [DRIVER])
++        cls.both = appoint('both', [ADMIN, DRIVER])
++
++    def login(self, where, username, **extra):
++        data = {'username': username, 'password': PASSWORD}
++        if where == 'admin:login':
++            # the admin login form carries this hidden field, so a browser always sends it
++            data['next'] = reverse('admin:index')
++        return self.client.post(reverse(where), {**data, **extra})
++
++    # --- shop login: customers unchanged ---------------------------------
++    def test_customer_login_is_unchanged(self):
++        resp = self.login('login', 'cust')
++        self.assertRedirects(resp, reverse('home'), fetch_redirect_response=False)
++
++    def test_shop_login_sends_single_role_staff_to_their_site(self):
++        self.assertRedirects(self.login('login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
++        self.client.logout()
++        self.assertRedirects(self.login('login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
++
++    def test_shop_login_two_positions_goes_to_chooser(self):
++        self.assertRedirects(self.login('login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
++
++    # --- admin login -----------------------------------------------------
++    def test_admin_login_single_role_goes_to_admin(self):
++        self.assertRedirects(self.login('admin:login', 'adm'), reverse('admin:index'), fetch_redirect_response=False)
++
++    def test_admin_login_two_positions_goes_to_chooser(self):
++        self.assertRedirects(self.login('admin:login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
++
++    def test_admin_login_keeps_deep_link(self):
++        target = reverse('admin:store_product_changelist')
++        resp = self.login('admin:login', 'both', next=target)
++        self.assertRedirects(resp, target, fetch_redirect_response=False)
++
++    def test_driver_cannot_use_admin_login(self):
++        resp = self.login('admin:login', 'drv')
++        self.assertEqual(resp.status_code, 200)               # form shown again, not signed in
++        self.assertNotIn('_auth_user_id', self.client.session)
++
++    # --- driver login ----------------------------------------------------
++    def test_driver_login_single_role_goes_to_board(self):
++        self.assertRedirects(self.login('delivery:login', 'drv'), reverse('delivery:board'), fetch_redirect_response=False)
++
++    def test_driver_login_two_positions_goes_to_chooser(self):
++        self.assertRedirects(self.login('delivery:login', 'both'), reverse('choose_workspace'), fetch_redirect_response=False)
++
++    def test_driver_login_keeps_next(self):
++        target = reverse('delivery:deliveries')
++        resp = self.login('delivery:login', 'both', next=target)
++        self.assertRedirects(resp, target, fetch_redirect_response=False)
++
++    def test_admin_cannot_use_driver_login(self):
++        resp = self.login('delivery:login', 'adm')
++        self.assertEqual(resp.status_code, 200)
++        self.assertNotIn('_auth_user_id', self.client.session)
++
++    # --- chooser ---------------------------------------------------------
++    def test_chooser_lists_both_sites(self):
++        self.client.force_login(self.both)
++        resp = self.client.get(reverse('choose_workspace'))
++        self.assertEqual(resp.status_code, 200)
++        self.assertContains(resp, reverse('admin:index'))
++        self.assertContains(resp, reverse('delivery:board'))
++
++    def test_chooser_skips_itself_for_one_site(self):
++        self.client.force_login(self.admin)
++        self.assertRedirects(self.client.get(reverse('choose_workspace')), reverse('admin:index'),
++                             fetch_redirect_response=False)
++
++    def test_chooser_for_customer_goes_home(self):
++        self.client.force_login(self.customer)
++        self.assertRedirects(self.client.get(reverse('choose_workspace')), reverse('home'),
++                             fetch_redirect_response=False)
++
++    def test_chooser_needs_login(self):
++        resp = self.client.get(reverse('choose_workspace'))
++        self.assertEqual(resp.status_code, 302)
++        self.assertIn(reverse('login'), resp['Location'])
++
++    # --- one session, two sites: switching needs no second login ---------
++    def test_one_login_opens_both_sites(self):
++        self.client.force_login(self.both)
++        self.assertEqual(self.client.get(reverse('admin:index')).status_code, 200)
++        self.assertEqual(self.client.get(reverse('delivery:dashboard')).status_code, 200)
++
++    def test_switch_link_shown_only_to_people_with_two_sites(self):
++        chooser = reverse('choose_workspace')
++        self.client.force_login(self.both)
++        self.assertContains(self.client.get(reverse('admin:index')), chooser)
++        self.assertContains(self.client.get(reverse('delivery:dashboard')), chooser)
++        self.client.force_login(self.driver)
++        self.assertNotContains(self.client.get(reverse('delivery:dashboard')), chooser)
++        self.client.force_login(self.admin)
++        self.assertNotContains(self.client.get(reverse('admin:index')), chooser)
++
++    def test_driver_role_switched_off_closes_driver_site_only(self):
++        reposition(self.both, [ADMIN])
++        self.client.force_login(User.objects.get(pk=self.both.pk))
++        self.assertEqual(self.client.get(reverse('admin:index')).status_code, 200)
++        self.assertRedirects(self.client.get(reverse('delivery:dashboard')),
++                             reverse('delivery:login'), fetch_redirect_response=False)
++        reposition(self.both, [ADMIN, DRIVER])              # put it back for the other tests
++
++
++class PositionSecurityTests(TestCase):
++    def test_profile_form_cannot_change_positions(self):
++        """Positions decide who gets into the admin site, so an employee must not edit their own."""
++        form = EmployeeProfileForm()
++        self.assertNotIn('position', form.fields)
++        self.assertEqual(list(form.fields), ['phone'])
++
++    def test_profile_post_cannot_make_someone_admin(self):
++        user = appoint('cashier', [DRIVER])
++        self.client.force_login(user)
++        self.client.post(reverse('profile'), {'phone': '88001122', 'position': ADMIN, 'positions': [ADMIN]})
++        user.refresh_from_db()
++        self.assertFalse(user.is_staff)
++        self.assertEqual(Employee.objects.get(user=user).position_list, [DRIVER])
++
++    def test_employee_pages_are_staff_only(self):
++        driver = appoint('drv', [DRIVER])
++        self.client.force_login(driver)
++        resp = self.client.get(reverse('add_employee'))
++        self.assertEqual(resp.status_code, 302)       # not staff -> bounced to login
++
++    def test_admin_change_form_sets_positions(self):
++        boss = User.objects.create_superuser('root', 'r@x.mn', PASSWORD)
++        person = appoint('adm', [ADMIN])
++        employee = Employee.objects.get(user=person)
++        self.client.force_login(boss)
++        url = reverse('admin:store_employee_change', args=[employee.pk])
++        resp = self.client.post(url, {'user': person.pk, 'positions': [ADMIN, DRIVER],
++                                      'phone': '99112233', 'is_active': 'on'})
++        self.assertEqual(resp.status_code, 302, getattr(resp, 'context', None) and resp.context['adminform'].form.errors)
++        self.assertEqual(keys(person), ['admin', 'driver'])
++
++        resp = self.client.post(url, {'user': person.pk, 'positions': [DRIVER],
++                                      'phone': '99112233', 'is_active': 'on'})
++        self.assertEqual(resp.status_code, 302)
++        self.assertEqual(keys(person), ['driver'])
++
++    def test_admin_change_form_shows_current_positions_ticked(self):
++        boss = User.objects.create_superuser('root', 'r@x.mn', PASSWORD)
++        person = appoint('both', [ADMIN, DRIVER])
++        self.client.force_login(boss)
++        resp = self.client.get(reverse('admin:store_employee_change', args=[Employee.objects.get(user=person).pk]))
++        self.assertEqual(resp.status_code, 200)
++        self.assertEqual(sorted(resp.context['adminform'].form.initial['positions']), sorted([ADMIN, DRIVER]))
++
++    def test_employees_page_lists_every_position(self):
++        boss = User.objects.create_superuser('root', 'r@x.mn', PASSWORD)
++        appoint('both', [ADMIN, DRIVER])
++        self.client.force_login(boss)
++        resp = self.client.get(reverse('employees'))
++        self.assertEqual(resp.status_code, 200)
++        self.assertContains(resp, 'Админ, Хүргэгч')
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/translations.py bshop.2.1v/store/translations.py
+--- /tmp/orig/bshop.2.1v/store/translations.py	2026-10-09 13:43:52.000000000 +0000
++++ bshop.2.1v/store/translations.py	2026-10-10 08:37:27.098976265 +0000
+@@ -570,6 +570,18 @@
+         'dl_e_bad_action': 'Буруу үйлдэл.',
+         'dl_e_state_changed': 'Хүргэлтийн төлөв өөрчлөгдсөн байна. Хуудсаа шинэчилнэ үү.',
+         'dl_e_reason': 'Амжилтгүй болсон шалтгаанаа сонгоно уу.',
++
++        # Workspaces (admin site / driver site chooser)
++        'ws_admin': 'Админ сайт',
++        'ws_driver': 'Хүргэгчийн сайт',
++        'ws_admin_desc': 'Бараа, захиалга, ажилтан, тайлан удирдах',
++        'ws_driver_desc': 'Надад оноогдсон хүргэлтүүд',
++        'ws_choose_title': 'Орох сайтаа сонгоно уу',
++        'ws_choose_text': 'Танд хэд хэдэн албан тушаал байгаа тул аль сайт руу орохоо сонгоно уу.',
++        'ws_open': 'Орох',
++        'ws_switch': 'Сайт солих',
++        'ws_positions_help': 'Хэд хэдэн албан тушаал сонгож болно. Админ / Оператор нь админ сайтад, Хүргэгч нь хүргэгчийн сайтад орох эрх олгоно.',
++        'ws_positions_required': 'Дор хаяж нэг албан тушаал сонгоно уу.',
+     },
+ 
+     'en': {
+@@ -1063,6 +1075,18 @@
+         'dl_e_bad_action': 'Invalid action.',
+         'dl_e_state_changed': 'The delivery status has changed. Please refresh the page.',
+         'dl_e_reason': 'Please choose a failure reason.',
++
++        # Workspaces (admin site / driver site chooser)
++        'ws_admin': 'Admin site',
++        'ws_driver': 'Driver site',
++        'ws_admin_desc': 'Manage products, orders, staff and reports',
++        'ws_driver_desc': 'Deliveries assigned to me',
++        'ws_choose_title': 'Choose where to go',
++        'ws_choose_text': 'You hold more than one position, so pick which site you want to open.',
++        'ws_open': 'Open',
++        'ws_switch': 'Switch site',
++        'ws_positions_help': 'You can pick several positions. Admin / Operator give access to the admin site, Driver gives access to the driver site.',
++        'ws_positions_required': 'Select at least one position.',
+     },
+ }
+ 
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/urls.py bshop.2.1v/store/urls.py
+--- /tmp/orig/bshop.2.1v/store/urls.py	2026-10-09 09:50:32.000000000 +0000
++++ bshop.2.1v/store/urls.py	2026-10-10 08:38:04.469838502 +0000
+@@ -6,6 +6,7 @@
+     path('about/', views.about, name='about'),
+     path('login/', views.login_user, name='login'),
+     path('logout/', views.logout_user, name='logout'),
++    path('workspace/', views.choose_workspace, name='choose_workspace'),
+     path('register/', views.register_user, name='register'),
+     path('products/<int:pk>/', views.products_detail, name='product_detail'),
+     path('category/<str:catname>/', views.category, name='category'),
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/views.py bshop.2.1v/store/views.py
+--- /tmp/orig/bshop.2.1v/store/views.py	2026-10-09 13:43:52.000000000 +0000
++++ bshop.2.1v/store/views.py	2026-10-10 08:38:04.464541602 +0000
+@@ -22,6 +22,7 @@
+ from django import forms
+ from .forms import RegisterForm, ProductForm, EmployeeForm, CustomerProfileForm, EmployeeProfileForm
+ from .translations import t, get_language, get_translations, AVAILABLE_LANGUAGES, COOKIE_NAME
++from .workspaces import get_workspaces, landing_redirect, workspace_url
+ from .search_utils import search_products, correct_query, suggest
+ from .sorting import apply_sort_and_period
+ from django.contrib.admin.sites import site as admin_site
+@@ -101,20 +102,29 @@
+         if user is not None:
+             login(request, user)
+             messages.success(request, t(request, 'msg_login_success'))
+-            if user.is_staff or user.is_superuser:
+-                return redirect('/admin/')
+-            # Хүргэгч бол шууд хүргэгчийн app руу (delivery/ нь store-оос хамаарахгүй
+-            # тул импортгүйгээр related_name-ээр шалгана).
+-            driver = getattr(user, 'driver_profile', None)
+-            if driver is not None and driver.is_active:
+-                return redirect('delivery:dashboard')
+-            return redirect('home')
++            # Customers: unchanged (shop home). Staff: one site -> straight in,
++            # two sites (e.g. Admin + Driver) -> the "which site?" chooser.
++            return landing_redirect(user)
+         else:
+             messages.error(request, t(request, 'msg_login_failed'))
+             return redirect('login')
+     else:
+         return render(request, 'login.html', {})
+ 
++@login_required
++def choose_workspace(request):
++    """Shown to someone who can open more than one site (e.g. holds both the
++    Admin and Хүргэгч positions). One site -> straight in; none -> shop home."""
++    spaces = get_workspaces(request.user)
++    if not spaces:
++        return redirect('home')
++    if len(spaces) == 1:
++        return redirect(workspace_url(spaces[0]))
++    return render(request, 'choose_workspace.html', {
++        'workspaces': [{'key': w.key, 'label': w.label, 'url': workspace_url(w)} for w in spaces],
++    })
++
++
+ def logout_user(request):
+     logout(request)
+     messages.success(request, t(request, 'msg_logout_success'))
+@@ -157,12 +167,13 @@
+             messages.error(request, t(request, 'msg_form_invalid'))
+     else:
+         form = form_class(instance=instance, lang=lang)
+-    return render(request, 'profile.html', {'form': form})
++    positions = instance.position_list if request.user.is_staff else []
++    return render(request, 'profile.html', {'form': form, 'positions': positions})
+ 
+ 
+ @staff_required
+ def employees(request):
+-    employees = User.objects.filter(Q(is_staff=True) | Q(driver_profile__isnull=False)).select_related('employee_profile').order_by('username')
++    employees = User.objects.filter(Q(is_staff=True) | Q(driver_profile__isnull=False)).select_related('employee_profile').prefetch_related('employee_profile__positions').order_by('username')
+     return render(request, 'employees.html', {'employees': employees})
+ 
+ 
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/store/workspaces.py bshop.2.1v/store/workspaces.py
+--- /tmp/orig/bshop.2.1v/store/workspaces.py	1970-01-01 00:00:00.000000000 +0000
++++ bshop.2.1v/store/workspaces.py	2026-10-10 08:37:15.438285346 +0000
+@@ -0,0 +1,70 @@
++"""Which "sites" (workspaces) a signed-in person is allowed to open.
++
++There are two staff sites besides the public shop:
++
++    admin  -> /admin/      needs User.is_staff
++    driver -> /delivery/   needs an active delivery.Driver profile
++
++Access always comes from those real flags, never from the free-text position
++label. The positions an admin ticks on the employee form are what *set* the
++flags (see Employee.refresh_from_positions and delivery/signals.py).
++
++Customers have no staff workspace; they keep using the normal shop login.
++"""
++from dataclasses import dataclass
++
++from django.shortcuts import redirect
++from django.urls import reverse
++
++from .translations import lazy_t
++
++ADMIN = 'admin'
++DRIVER = 'driver'
++
++
++@dataclass(frozen=True)
++class Workspace:
++    key: str
++    label: object          # lazy translated text
++    url_name: str          # where the site starts (after login)
++    login_url_name: str    # that site's own login page
++
++
++_WORKSPACES = {
++    ADMIN: Workspace(ADMIN, lazy_t('ws_admin'), 'admin:index', 'admin:login'),
++    DRIVER: Workspace(DRIVER, lazy_t('ws_driver'), 'delivery:board', 'delivery:login'),
++}
++
++
++def get_workspaces(user):
++    """Workspaces this user may enter, admin first. Empty list = plain customer."""
++    if not getattr(user, 'is_authenticated', False) or not user.is_active:
++        return []
++    found = []
++    if user.is_staff:
++        found.append(_WORKSPACES[ADMIN])
++    # delivery is a separate app; the reverse one-to-one is read by name so
++    # store never imports it (a missing profile raises an AttributeError subclass).
++    driver = getattr(user, 'driver_profile', None)
++    if driver is not None and driver.is_active:
++        found.append(_WORKSPACES[DRIVER])
++    return found
++
++
++def workspace_url(workspace):
++    return reverse(workspace.url_name)
++
++
++def landing_redirect(user):
++    """Where to send someone right after they sign in.
++
++    no staff workspace -> the shop home page (customers: unchanged)
++    exactly one        -> straight into that site
++    two or more        -> the "which site?" chooser
++    """
++    spaces = get_workspaces(user)
++    if not spaces:
++        return redirect('home')
++    if len(spaces) == 1:
++        return redirect(workspace_url(spaces[0]))
++    return redirect('choose_workspace')
+diff -ruN -x __pycache__ -x '*.pyc' -x .venv -x staticfiles -x .git -x .env /tmp/orig/bshop.2.1v/templates/admin/base_site.html bshop.2.1v/templates/admin/base_site.html
+--- /tmp/orig/bshop.2.1v/templates/admin/base_site.html	2026-10-10 15:40:20.000000000 +0000
++++ bshop.2.1v/templates/admin/base_site.html	2026-10-10 08:38:47.577914342 +0000
+@@ -1,6 +1,7 @@
+ {% extends "admin/base.html" %}
+ {% load static %}
+ {% load i18n %}
++{% load workspace_extras %}
+ 
+ {% block title %}{{ title }} | {{ T.admin_site_title }}{% endblock %}
+ 
+@@ -183,6 +184,16 @@
+             </a>
+         </li>
+         {% endif %}
++
++        {% user_workspaces as ws_list %}
++        {% if ws_list|length > 1 %}
++        <li>
++            <a class="admin-profile-item" href="{% url 'choose_workspace' %}">
++                <span class="admin-profile-icon"><svg class="bi" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z"/></svg></span>
++                {{ T.ws_switch }}
++            </a>
++        </li>
++        {% endif %}
+ 
+         <li class="admin-profile-divider" role="separator"></li>
+ 

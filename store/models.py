@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 
@@ -42,6 +42,32 @@ class Category(models.Model):
         verbose_name_plural = lazy_t('admin_categories')
 
 
+# ---------------------------------------------------------------------------
+# Job positions. One person can hold several at the same time.
+# ---------------------------------------------------------------------------
+# What a position unlocks:
+#   Admin, Operator -> the admin site   (the auth User gets is_staff)
+#   Хүргэгч (Driver) -> the driver site (a delivery.Driver profile is switched on)
+# Anything else (e.g. the old default "Employee") is only a label.
+POSITION_ADMIN = 'Admin'
+POSITION_OPERATOR = 'Operator'
+POSITION_DRIVER = 'Хүргэгч'
+STAFF_POSITIONS = (POSITION_ADMIN, POSITION_OPERATOR)
+ROLE_POSITIONS = STAFF_POSITIONS + (POSITION_DRIVER,)
+
+_POSITION_ALIASES = {
+    'admin': POSITION_ADMIN, 'админ': POSITION_ADMIN,
+    'operator': POSITION_OPERATOR, 'оператор': POSITION_OPERATOR,
+    'хүргэгч': POSITION_DRIVER, 'driver': POSITION_DRIVER, 'courier': POSITION_DRIVER,
+}
+
+
+def canonical_position(value):
+    """'Админ' / 'admin' -> 'Admin', 'Driver' / 'Courier' -> 'Хүргэгч'. Unknown text is kept as typed."""
+    text = str(value or '').strip()
+    return _POSITION_ALIASES.get(text.casefold(), text)
+
+
 class Employee(models.Model):
     """A real, separate table for staff accounts. Linked 1-to-1 to Django's
     built-in auth User (which still handles login/passwords/permissions) so
@@ -78,9 +104,89 @@ class Employee(models.Model):
     def __str__(self):
         return self.user.username
 
+    # --- positions (several per person) -----------------------------------
+    @property
+    def position_list(self):
+        """Every position this person holds, e.g. ['Admin', 'Хүргэгч'].
+        Falls back to the old single `position` text for rows that have no
+        EmployeePosition yet."""
+        names = [p.position for p in self.positions.all()]
+        if names:
+            return names
+        legacy = (self.position or '').strip()
+        return [legacy] if legacy else []
+
+    def has_position(self, *names):
+        wanted = {canonical_position(n) for n in names}
+        return any(canonical_position(p) in wanted for p in self.position_list)
+
+    def set_positions(self, positions):
+        """Replace this person's positions with `positions`. Adding or removing
+        a row switches the matching access on or off (see refresh_from_positions
+        and delivery/signals.py)."""
+        wanted = []
+        for value in positions or []:
+            name = canonical_position(value)
+            if name and name not in wanted:
+                wanted.append(name)
+        current = {p.position: p for p in self.positions.all()}
+        for name, row in current.items():
+            if name not in wanted:
+                row.delete()
+        for name in wanted:
+            if name not in current:
+                EmployeePosition.objects.create(employee=self, position=name)
+
+    def refresh_from_positions(self):
+        """Called whenever a position row is added/removed.
+
+        * keeps the old `position` column as a readable summary ("Admin, Хүргэгч")
+        * gives or takes away admin-site access (User.is_staff). This only
+          happens when at least one real role (Admin / Operator / Хүргэгч) is
+          among the positions, so an old row that only says "Employee" can
+          never lock someone out by accident. Superusers are never touched.
+        """
+        names = list(self.positions.values_list('position', flat=True))
+        summary = ', '.join(names)
+        if summary != self.position:
+            Employee.objects.filter(pk=self.pk).update(position=summary)
+            self.position = summary
+        if any(n in ROLE_POSITIONS for n in names):
+            should_be_staff = any(n in STAFF_POSITIONS for n in names)
+            user = type(self.user).objects.get(pk=self.user_id)
+            if not user.is_superuser and user.is_staff != should_be_staff:
+                type(user).objects.filter(pk=user.pk).update(is_staff=should_be_staff)
+                self.user.is_staff = should_be_staff
+
     class Meta:
         verbose_name = lazy_t('admin_model_employee')
         verbose_name_plural = lazy_t('admin_employees')
+
+
+class EmployeePosition(models.Model):
+    """One job position held by one employee. A person with two rows (e.g.
+    Admin + Хүргэгч) can use both the admin site and the driver site."""
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='positions')
+    position = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['id']
+        constraints = [
+            models.UniqueConstraint(fields=['employee', 'position'], name='uniq_employee_position'),
+        ]
+
+    def __str__(self):
+        return f'{self.employee} - {self.position}'
+
+
+@receiver(post_save, sender=EmployeePosition)
+@receiver(post_delete, sender=EmployeePosition)
+def positions_changed(sender, instance, **kwargs):
+    try:
+        employee = Employee.objects.select_related('user').get(pk=instance.employee_id)
+    except Employee.DoesNotExist:      # the employee itself is being deleted
+        return
+    employee.refresh_from_positions()
 
 
 class Customer(models.Model):

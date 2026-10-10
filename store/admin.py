@@ -8,9 +8,9 @@ from django.urls import path, reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django.views.decorators.clickjacking import xframe_options_sameorigin
-from .forms import POSITION_CHOICES, ProductForm, position_choices_with
+from .forms import PositionsField, ProductForm, position_choices_for
 
-from .models import (HERO_MAX_SLIDES, HERO_MAX_UPLOAD_MB, HERO_MIN_SIZE, Category, Customer, Employee,
+from .models import (HERO_MAX_SLIDES, canonical_position, HERO_MAX_UPLOAD_MB, HERO_MIN_SIZE, Category, Customer, Employee,
                      HeroSlide, Product, ProductOption, StockEntry)
 from .pricing import margin_percent, selling_price
 from .stock_rules import low_q, out_q
@@ -52,7 +52,9 @@ def _lab_category(raw, T, en):
 
 
 def _lab_position(raw, T, en):
-    return translate_position(raw, 'en' if en else 'mn')
+    # The stored text can be a summary of several positions ("Admin, Хүргэгч").
+    lang = 'en' if en else 'mn'
+    return ', '.join(translate_position(part.strip(), lang) for part in str(raw or '').split(',') if part.strip())
 
 
 def _lab_stock_state(raw, T, en):
@@ -343,15 +345,23 @@ class CategoryAdmin(ActiveStatusAdmin):
 
 
 class EmployeeAdminForm(forms.ModelForm):
-    position = forms.ChoiceField(choices=POSITION_CHOICES[1:], label=lazy_t('f_position'))
+    # Several positions per person. Ticking Admin / Operator lets them into the
+    # admin site, ticking Хүргэгч lets them into the driver site; someone with
+    # both gets a "which site?" screen after signing in.
+    positions = PositionsField(required=True)
 
     class Meta:
         model = Employee
-        fields = '__all__'
+        exclude = ['position']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['position'].choices = position_choices_with(getattr(self.instance, 'position', ''))
+        current = self.instance.position_list if self.instance.pk else []
+        self.fields['positions'].choices = position_choices_for(current)
+        self.initial['positions'] = [
+            c[0] for c in self.fields['positions'].choices if c[0] in {canonical_position(p) for p in current}
+        ]
+        self.order_fields(['user', 'positions', 'phone', 'is_active'])
 
 
 @admin.register(Employee)
@@ -368,7 +378,16 @@ class EmployeeAdmin(ActiveStatusAdmin):
     @admin.display(description=lazy_t('f_position'), ordering='position')
     def position_display(self, obj):
         from .translations import active_language
-        return translate_position(obj.position, active_language())
+        lang = active_language()
+        return ', '.join(translate_position(p, lang) for p in obj.position_list)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('positions')
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        # The employee row is saved by now, so the positions can be attached.
+        form.instance.set_positions(form.cleaned_data['positions'])
 
     # A plain 'user' column would sort by the user's id; this sorts by name.
     @admin.display(description=lazy_t('table_username'), ordering='user__username')

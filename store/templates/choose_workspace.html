@@ -1,0 +1,26 @@
+{% extends 'layout.html' %}
+{% block content %}
+<header class="bg-dark-py-5">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="text-center text-white">
+            <h1 class="display-4 fw-bolder">{{ T.ws_choose_title }}</h1>
+            <p class="lead fw-normal text-white-50 mb-0">{{ T.ws_choose_text }}</p>
+        </div>
+    </div>
+</header>
+<div class="container">
+    <div class="row justify-content-center g-4 my-3">
+        {% for ws in workspaces %}
+        <div class="col-md-5 col-lg-4">
+            <a href="{{ ws.url }}" class="card h-100 text-decoration-none text-reset shadow-sm">
+                <div class="card-body text-center py-5">
+                    <h2 class="h4 mb-2">{{ ws.label }}</h2>
+                    <p class="text-muted mb-4">{% if ws.key == 'admin' %}{{ T.ws_admin_desc }}{% else %}{{ T.ws_driver_desc }}{% endif %}</p>
+                    <span class="btn btn-primary">{{ T.ws_open }}</span>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

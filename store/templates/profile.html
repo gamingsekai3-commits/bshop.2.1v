@@ -1,6 +1,7 @@
 {% extends 'layout.html' %}
 {% load humanize %}
 {% load static %}
+{% load i18n_extras %}
 
 {% block content %}
 <header class="bg-dark-py-5">
@@ -17,6 +18,7 @@
             <br>
             <form action="{% url 'profile' %}" method="POST">
                 {% csrf_token %}
+                {% if positions %}<p><strong>{{ T.table_position }}:</strong> {% for pos in positions %}<span class="badge bg-secondary me-1">{{ pos|position_name:LANG }}</span>{% endfor %}</p>{% endif %}
                 {{ form.as_p }}
                 <br><br>
                 <button type="submit" class="btn btn-primary">{{ T.save_btn }}</button>

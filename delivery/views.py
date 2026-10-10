@@ -11,6 +11,8 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from store.workspaces import landing_redirect
+
 from . import services
 from .forms import DriverLoginForm, FailDeliveryForm
 from .models import Delivery, Driver
@@ -43,7 +45,8 @@ def login_view(request):
         next_url = request.POST.get('next') or request.GET.get('next') or ''
         if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
-        return redirect('delivery:board')
+        # A person who is also an admin (two positions) picks which site to open.
+        return landing_redirect(form.get_user())
     return render(request, 'delivery/login.html', {'form': form, 'next': request.GET.get('next', '')})
 
 

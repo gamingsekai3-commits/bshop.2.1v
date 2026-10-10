@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static %}{% load workspace_extras %}<!DOCTYPE html>
 <html lang="mn" data-theme="light">
 <head>
     <meta charset="utf-8">
@@ -18,6 +18,7 @@
     <a class="brand" href="{% url 'delivery:board' %}"><span class="mark">BSHOP</span> Хүргэгч</a>
     <div class="tools">
         {% if driver %}<span class="who">{{ driver.display_name }}<span class="dot dot-{{ driver.current_status }}" title="{{ driver.get_current_status_display }}"></span></span>{% endif %}
+        {% user_workspaces as ws_list %}{% if ws_list|length > 1 %}<a class="who" href="{% url 'choose_workspace' %}">⇄ {{ T.ws_switch }}</a>{% endif %}
         <button type="button" class="icon-btn theme-toggle" aria-label="Theme">◐</button>
     </div>
 </header>
